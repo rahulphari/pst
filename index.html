@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PST HawkEye | Accountability Dashboard</title>
+    <title>PST EYE | Accountability Dashboard</title>
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -57,19 +56,20 @@
             color: #2563eb;
         }
 
+        .clickable-stat {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .clickable-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            filter: brightness(0.95);
+        }
+
         .animate-fade-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .timeline-line::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: #e2e8f0;
-            z-index: 0;
-        }
+        .timeline-line::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #e2e8f0; z-index: 0; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -77,7 +77,7 @@
     <!-- HEADER -->
     <div class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
-            <h1 class="text-3xl font-bold text-slate-800 tracking-tight"><i class="fas fa-eagle text-blue-600 mr-2"></i>PST HawkEye</h1>
+            <h1 class="text-3xl font-bold text-slate-800 tracking-tight"><i class="fas fa-eye text-blue-600 mr-2"></i>PST EYE</h1>
             <p class="text-slate-500 mt-1 font-medium">Shift Accountability & Resolution Tracker</p>
         </div>
         <div class="mt-4 md:mt-0 flex gap-3">
@@ -199,8 +199,8 @@
             </div>
         </div>
 
-        <!-- SHIFT DNA VISUAL BREAKDOWN (Replaces Old Matrix) -->
-        <h3 class="text-lg font-bold text-slate-800 mb-4 px-1">Detailed Shift Velocity</h3>
+        <!-- DETAILED BREAKDOWN (Replaces Detailed Shift Velocity) -->
+        <h3 class="text-lg font-bold text-slate-800 mb-4 px-1">Detailed Breakdown</h3>
         <div id="matrix-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <!-- Cards Injected via JS -->
         </div>
@@ -244,6 +244,37 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- POPUP MODAL -->
+    <div id="dataModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm animate-fade-in transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-11/12 max-w-4xl max-h-[85vh] flex flex-col transform transition-all scale-100">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800" id="modalTitle">Data Details</h3>
+                    <p class="text-xs text-slate-500" id="modalSubtitle">Viewing specific records</p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center transition"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            <div class="p-0 overflow-auto custom-scroll flex-grow">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-white text-xs uppercase text-slate-500 sticky top-0 z-10 border-b border-slate-100 shadow-sm">
+                        <tr>
+                            <th class="p-3 pl-5">AWB</th>
+                            <th class="p-3">Client</th>
+                            <th class="p-3">Issue/Remark</th>
+                            <th class="p-3">Sort Code</th>
+                            <th class="p-3 text-right pr-5">Ageing</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalBody" class="divide-y divide-slate-50 text-slate-700"></tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-500" id="modalCount">0 records</span>
+                <button onclick="closeModal()" class="bg-white border border-slate-300 text-slate-700 px-5 py-2 rounded-lg text-sm font-bold hover:bg-slate-100 transition shadow-sm">Close View</button>
+            </div>
+        </div>
     </div>
 
     <!-- JAVASCRIPT LOGIC -->
@@ -412,27 +443,34 @@
                     }).length;
                 };
 
+                // Get Lists for Age Calculation (Closing Balance items for this category)
+                const getItems = (map) => {
+                     const arr = Array.from(map.values());
+                     return arr.filter(item => {
+                         let text = item.remark || item[Object.keys(item).find(k => k.toLowerCase().includes('remark')) || 'NSL Remark'] || '';
+                         return cat.keywords.some(k => text.toLowerCase().includes(k));
+                     });
+                };
+                
+                const closingItems = getItems(endMap);
+                const ageBucket1 = closingItems.filter(i => { let age = parseFloat(i.ageing || i['Ageing (Hrs)']); return age < 48; }).length;
+                const ageBucket2 = closingItems.filter(i => { let age = parseFloat(i.ageing || i['Ageing (Hrs)']); return age >= 48 && age <= 72; }).length;
+                const ageBucket3 = closingItems.filter(i => { let age = parseFloat(i.ageing || i['Ageing (Hrs)']); return age > 72; }).length;
+
                 const open = count(startMap);
                 const added = count(newlyAdded);
                 const fixed = count(resolved);
                 const close = count(endMap);
                 const net = close - open;
 
-                summaryMatrix.push({
-                    "Category": cat.label,
-                    "Opening Balance": open,
-                    "New Influx (+)": added,
-                    "Resolved (-)": fixed,
-                    "Closing Balance": close,
-                    "Net Change": net
-                });
+                summaryMatrix.push({ "Category": cat.label, "Opening Balance": open, "New Influx (+)": added, "Resolved (-)": fixed, "Closing Balance": close, "Net Change": net });
 
                 // Calculate Progress Bar Width
                 const totalActivity = open + added;
                 const progressPct = totalActivity > 0 ? (fixed / totalActivity) * 100 : 0;
 
                 const cardHTML = `
-                <div class="card p-5 border-t-4 border-${cat.color}-500 relative overflow-hidden">
+                <div class="card p-5 border-t-4 border-${cat.color}-500 relative overflow-hidden flex flex-col h-full">
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex items-center gap-2">
                             <div class="bg-${cat.color}-100 w-8 h-8 rounded-full flex items-center justify-center text-${cat.color}-600">
@@ -440,44 +478,151 @@
                             </div>
                             <h3 class="font-bold text-slate-700">${cat.label}</h3>
                         </div>
-                        <div class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">PENDING</div>
+                        <div class="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 uppercase">Live Stats</div>
                     </div>
                     
-                    <div class="flex items-end gap-2 mb-4">
-                        <span class="text-4xl font-bold text-slate-800">${close}</span>
+                    <div class="flex items-end gap-2 mb-4 cursor-pointer" onclick="showDetails('${cat.id}', 'closing')" title="Click to view pending items">
+                        <span class="text-4xl font-bold text-slate-800 hover:text-blue-600 transition">${close}</span>
                         <span class="text-sm font-bold text-${net > 0 ? 'red' : 'green'}-500 mb-1">
                             ${net > 0 ? '<i class="fas fa-arrow-up"></i>' : '<i class="fas fa-arrow-down"></i>'} ${Math.abs(net)}
                         </span>
                     </div>
 
-                    <!-- Flow Stats -->
+                    <!-- Clickable Flow Stats -->
                     <div class="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-                        <div class="bg-slate-50 rounded p-1">
-                            <div class="text-slate-400 font-bold">START</div>
+                        <div class="bg-slate-50 rounded p-1 clickable-stat border border-transparent hover:border-slate-300" onclick="showDetails('${cat.id}', 'opening')">
+                            <div class="text-slate-400 font-bold text-[10px]">START</div>
                             <div class="font-bold text-slate-700">${open}</div>
                         </div>
-                        <div class="bg-red-50 rounded p-1">
-                            <div class="text-red-400 font-bold">NEW</div>
+                        <div class="bg-red-50 rounded p-1 clickable-stat border border-transparent hover:border-red-300" onclick="showDetails('${cat.id}', 'new')">
+                            <div class="text-red-400 font-bold text-[10px]">NEW</div>
                             <div class="font-bold text-red-600">+${added}</div>
                         </div>
-                        <div class="bg-green-50 rounded p-1">
-                            <div class="text-green-400 font-bold">FIXED</div>
+                        <div class="bg-green-50 rounded p-1 clickable-stat border border-transparent hover:border-green-300" onclick="showDetails('${cat.id}', 'resolved')">
+                            <div class="text-green-400 font-bold text-[10px]">FIXED</div>
                             <div class="font-bold text-green-600">-${fixed}</div>
                         </div>
                     </div>
 
                     <!-- Progress Bar -->
-                    <div class="w-full bg-slate-100 rounded-full h-1.5">
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mb-1">
                         <div class="bg-${cat.color}-500 h-1.5 rounded-full" style="width: ${progressPct}%"></div>
                     </div>
-                    <div class="flex justify-between mt-1">
+                    <div class="flex justify-between mb-4">
                         <span class="text-[10px] text-slate-400 font-bold">RESOLUTION RATE</span>
                         <span class="text-[10px] text-${cat.color}-600 font-bold">${progressPct.toFixed(0)}%</span>
+                    </div>
+
+                    <!-- Age Spectrum (Breakdown) -->
+                    <div class="mt-auto pt-3 border-t border-slate-100">
+                        <p class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wide">Age Spectrum -</p>
+                        <div class="grid grid-cols-3 gap-1">
+                            <div class="bg-emerald-50 rounded border border-emerald-100 p-1.5 text-center clickable-stat hover:border-emerald-300" onclick="showDetails('${cat.id}', 'age_low')">
+                                <div class="text-[9px] font-bold text-emerald-600 uppercase mb-0.5">&lt; 48h</div>
+                                <div class="font-bold text-slate-700 text-sm">${ageBucket1}</div>
+                            </div>
+                            <div class="bg-orange-50 rounded border border-orange-100 p-1.5 text-center clickable-stat hover:border-orange-300" onclick="showDetails('${cat.id}', 'age_mid')">
+                                <div class="text-[9px] font-bold text-orange-600 uppercase mb-0.5">48-72h</div>
+                                <div class="font-bold text-slate-700 text-sm">${ageBucket2}</div>
+                            </div>
+                            <div class="bg-rose-50 rounded border border-rose-100 p-1.5 text-center clickable-stat hover:border-rose-300" onclick="showDetails('${cat.id}', 'age_high')">
+                                <div class="text-[9px] font-bold text-rose-600 uppercase mb-0.5">&gt; 72h</div>
+                                <div class="font-bold text-slate-700 text-sm">${ageBucket3}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>`;
                 
                 container.innerHTML += cardHTML;
             });
+        }
+
+        // --- POPUP LOGIC ---
+        function showDetails(categoryKey, type) {
+            const catMap = { 'short': ['short'], 'damaged': ['damage'], 'audit': ['audit', 'missing'] };
+            const keywords = catMap[categoryKey] || [];
+            
+            let dataset = [];
+            let titleType = '';
+
+            // Filter main FinalReport based on Type
+            if (type === 'opening') {
+                // Opening = Resolved OR Pending
+                dataset = finalReport.filter(r => r.status === 'Resolved' || r.status === 'Pending');
+                titleType = 'Opening Balance';
+            } else if (type === 'new') {
+                dataset = finalReport.filter(r => r.status === 'New Influx');
+                titleType = 'New Influx';
+            } else if (type === 'resolved') {
+                dataset = finalReport.filter(r => r.status === 'Resolved');
+                titleType = 'Resolved Cases';
+            } else if (type === 'closing') {
+                // Closing = New Influx OR Pending
+                dataset = finalReport.filter(r => r.status === 'New Influx' || r.status === 'Pending');
+                titleType = 'Closing Balance';
+            } else if (type === 'age_low') {
+                // < 48h (Closing items)
+                dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && r.ageing < 48);
+                titleType = 'Closing Balance (< 48h)';
+            } else if (type === 'age_mid') {
+                // 48-72h (Closing items)
+                dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && r.ageing >= 48 && r.ageing <= 72);
+                titleType = 'Closing Balance (48-72h)';
+            } else if (type === 'age_high') {
+                // > 72h (Closing items)
+                dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && r.ageing > 72);
+                titleType = 'Closing Balance (> 72h)';
+            }
+
+            // Further Filter by Category Keyword
+            const filteredData = dataset.filter(item => {
+                const txt = (item.remark || '').toLowerCase();
+                return keywords.some(k => txt.includes(k));
+            });
+
+            // Populate Modal
+            const tbody = document.getElementById('modalBody');
+            tbody.innerHTML = '';
+            
+            document.getElementById('modalTitle').innerText = `${categoryKey.toUpperCase()} - ${titleType}`;
+            document.getElementById('modalSubtitle').innerText = `${filteredData.length} records found`;
+            document.getElementById('modalCount').innerText = `${filteredData.length} total records`;
+
+            if (filteredData.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No records found for this selection.</td></tr>';
+            } else {
+                filteredData.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition";
+                    
+                    // Color code age if high
+                    let ageClass = "text-slate-600";
+                    if(row.ageing > 72) ageClass = "text-red-600 font-bold";
+                    else if(row.ageing > 48) ageClass = "text-orange-600 font-bold";
+
+                    tr.innerHTML = `
+                        <td class="p-3 pl-5 font-mono font-semibold text-slate-700 text-xs">${row.awb}</td>
+                        <td class="p-3 text-xs text-slate-600">${row.client}</td>
+                        <td class="p-3 text-xs text-slate-600">${row.remark}</td>
+                        <td class="p-3 text-xs text-slate-500">${row.sortCode}</td>
+                        <td class="p-3 pr-5 text-right font-mono text-xs ${ageClass}">${row.ageing}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('dataModal').classList.remove('hidden', 'opacity-0');
+            document.getElementById('dataModal').classList.add('flex', 'opacity-100');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('dataModal');
+            modal.classList.add('opacity-0');
+            modal.classList.remove('opacity-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 200);
         }
 
         function renderTable(data) {
@@ -544,7 +689,6 @@
 
         window.downloadExcelReport = function() {
             const wb = XLSX.utils.book_new();
-            
             const ws_summary = XLSX.utils.json_to_sheet(summaryMatrix);
             XLSX.utils.book_append_sheet(wb, ws_summary, "Executive Summary");
 
