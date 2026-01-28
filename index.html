@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PST HawkEye | Accountability Dashboard</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+        
+        .card { 
+            background: white; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); 
+            transition: all 0.3s ease;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.2s;
+            background-color: #f8fafc;
+        }
+        .upload-area:hover { border-color: #3b82f6; background-color: #eff6ff; }
+
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Status Badges */
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.70rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .badge-resolved { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-new { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .badge-pending { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+            color: #64748b;
+            font-weight: 600;
+            transition: all 0.2s;
+            padding-bottom: 0.75rem;
+        }
+        .tab-btn:hover { color: #3b82f6; }
+        .tab-btn.active {
+            border-bottom-color: #2563eb;
+            color: #2563eb;
+        }
+
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .timeline-line::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e2e8f0;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- HEADER -->
+    <div class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-800 tracking-tight"><i class="fas fa-eagle text-blue-600 mr-2"></i>PST HawkEye</h1>
+            <p class="text-slate-500 mt-1 font-medium">Shift Accountability & Resolution Tracker</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex gap-3">
+             <button onclick="window.location.reload()" class="bg-white text-slate-600 px-4 py-2 rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 font-semibold text-sm transition">
+                <i class="fas fa-redo mr-2"></i>Reset
+            </button>
+            <button onclick="downloadExcelReport()" id="dl-btn" class="hidden bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg shadow-md font-bold text-sm transition flex items-center">
+                <i class="fas fa-file-excel mr-2"></i>Download Excel Report
+            </button>
+        </div>
+    </div>
+
+    <!-- UPLOAD SECTION -->
+    <div id="upload-section" class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-fade-in">
+        <!-- Start File -->
+        <div class="card p-6 border-l-4 border-blue-500 relative group">
+            <div class="absolute top-4 right-4 text-blue-100 text-6xl opacity-20 transition group-hover:scale-110"><i class="fas fa-hourglass-start"></i></div>
+            <h3 class="text-lg font-bold text-slate-700 mb-2">1. Start of Shift Report</h3>
+            <p class="text-sm text-slate-500 mb-4">Upload the CSV state before the team started working.</p>
+            <label class="upload-area flex flex-col items-center justify-center h-32 rounded-lg cursor-pointer">
+                <i class="fas fa-file-csv text-3xl text-slate-400 mb-2"></i>
+                <span class="text-sm font-semibold text-slate-600" id="label-start">Click to upload CSV</span>
+                <input type="file" id="fileStart" accept=".csv" class="hidden"/>
+            </label>
+        </div>
+
+        <!-- End File -->
+        <div class="card p-6 border-l-4 border-indigo-500 relative group">
+            <div class="absolute top-4 right-4 text-indigo-100 text-6xl opacity-20 transition group-hover:scale-110"><i class="fas fa-hourglass-end"></i></div>
+            <h3 class="text-lg font-bold text-slate-700 mb-2">2. End of Shift Report</h3>
+            <p class="text-sm text-slate-500 mb-4">Upload the CSV state at the end of the shift.</p>
+            <label class="upload-area flex flex-col items-center justify-center h-32 rounded-lg cursor-pointer">
+                <i class="fas fa-file-csv text-3xl text-slate-400 mb-2"></i>
+                <span class="text-sm font-semibold text-slate-600" id="label-end">Click to upload CSV</span>
+                <input type="file" id="fileEnd" accept=".csv" class="hidden"/>
+            </label>
+        </div>
+    </div>
+
+    <!-- LOADING SPINNER -->
+    <div id="loading" class="hidden max-w-7xl mx-auto text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
+        <h2 class="text-xl font-bold text-slate-700">Analyzing Shift Performance...</h2>
+        <p class="text-slate-500">Extracting metadata and calculating velocity.</p>
+    </div>
+
+    <!-- DASHBOARD CONTENT -->
+    <div id="dashboard" class="hidden max-w-7xl mx-auto animate-fade-in">
+        
+        <!-- TIMELINE HEADER -->
+        <div class="card mb-6 p-4 flex flex-col md:flex-row items-center justify-between bg-white border-l-4 border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-100 p-2 rounded-full text-slate-600"><i class="fas fa-clock"></i></div>
+                <div>
+                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wide">Shift Timeline (From Metadata)</div>
+                    <div class="text-sm font-bold text-slate-800" id="time-range">Loading...</div>
+                </div>
+            </div>
+            <div class="mt-2 md:mt-0 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100">
+                Verified Data Source
+            </div>
+        </div>
+
+        <!-- MAIN KPIS -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Opening Balance -->
+            <div class="card p-5">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Opening Balance</p>
+                        <h2 class="text-3xl font-bold text-slate-800 mt-1" id="kpi-opening">0</h2>
+                    </div>
+                    <div class="p-2 bg-slate-100 rounded-lg text-slate-500">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resolved -->
+            <div class="card p-5 bg-green-50/50 border-green-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Total Resolved</p>
+                        <h2 class="text-3xl font-bold text-green-600 mt-1" id="kpi-resolved">0</h2>
+                    </div>
+                    <div class="p-2 bg-green-100 rounded-lg text-green-600">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Influx -->
+            <div class="card p-5 bg-red-50/50 border-red-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-red-600 uppercase tracking-wider">New Influx</p>
+                        <h2 class="text-3xl font-bold text-red-600 mt-1" id="kpi-new">0</h2>
+                    </div>
+                    <div class="p-2 bg-red-100 rounded-lg text-red-600">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Velocity -->
+            <div class="card p-5 bg-slate-800 text-white border-slate-900">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-blue-300 uppercase tracking-wider">Efficiency Score</p>
+                        <h2 class="text-3xl font-bold text-white mt-1" id="kpi-rate">0%</h2>
+                    </div>
+                    <div class="p-2 bg-slate-700 rounded-lg text-blue-300">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-700 rounded-full h-1.5 mt-4 overflow-hidden">
+                    <div class="bg-blue-400 h-1.5 rounded-full transition-all duration-1000" id="velocity-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SHIFT DNA VISUAL BREAKDOWN (Replaces Old Matrix) -->
+        <h3 class="text-lg font-bold text-slate-800 mb-4 px-1">Detailed Shift Velocity</h3>
+        <div id="matrix-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Cards Injected via JS -->
+        </div>
+
+        <!-- MAIN DATA TABLE -->
+        <div class="card p-6">
+            <!-- Filter Tabs -->
+            <div class="flex flex-wrap gap-6 border-b border-slate-200 mb-6">
+                <button onclick="switchTab('all', this)" class="tab-btn active text-sm"><i class="fas fa-list mr-2"></i>All Activity</button>
+                <button onclick="switchTab('short', this)" class="tab-btn text-sm"><i class="fas fa-compress-alt mr-2"></i>Short Shipment</button>
+                <button onclick="switchTab('damaged', this)" class="tab-btn text-sm"><i class="fas fa-box-open mr-2"></i>Damaged</button>
+                <button onclick="switchTab('audit', this)" class="tab-btn text-sm"><i class="fas fa-search mr-2"></i>Missing in Audit</button>
+            </div>
+
+            <!-- Search -->
+            <div class="flex justify-between items-center mb-4">
+                <div class="relative w-64">
+                    <i class="fas fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" id="tableSearch" onkeyup="searchTable()" placeholder="Search AWB or Client..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 shadow-sm">
+                </div>
+                <span class="text-xs text-slate-400 font-medium" id="record-count">0 records found</span>
+            </div>
+
+            <!-- Detailed Table -->
+            <div class="overflow-x-auto custom-scroll max-h-[500px] border border-slate-100 rounded-lg">
+                <table class="w-full text-left text-sm border-collapse" id="main-table">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10 shadow-sm font-semibold">
+                        <tr>
+                            <th class="p-3 border-b pl-4">Status</th>
+                            <th class="p-3 border-b">AWB</th>
+                            <th class="p-3 border-b">Client</th>
+                            <th class="p-3 border-b">Remark (PST Focus)</th>
+                            <th class="p-3 border-b">Issue Detail</th>
+                            <th class="p-3 border-b text-right pr-4">Ageing (Hrs)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="main-table-body" class="divide-y divide-slate-100 text-slate-700">
+                        <!-- JS Populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let startData = [];
+        let endData = [];
+        let finalReport = []; 
+        let summaryMatrix = []; 
+        let currentFilter = 'all';
+
+        const fileStartInput = document.getElementById('fileStart');
+        const fileEndInput = document.getElementById('fileEnd');
+        const labelStart = document.getElementById('label-start');
+        const labelEnd = document.getElementById('label-end');
+
+        // Event Listeners for Upload
+        fileStartInput.addEventListener('change', (e) => {
+            if(e.target.files.length > 0) labelStart.innerHTML = `<span class="text-blue-600 font-bold"><i class="fas fa-check-circle"></i> ${e.target.files[0].name}</span>`;
+            checkFiles();
+        });
+        
+        fileEndInput.addEventListener('change', (e) => {
+            if(e.target.files.length > 0) labelEnd.innerHTML = `<span class="text-indigo-600 font-bold"><i class="fas fa-check-circle"></i> ${e.target.files[0].name}</span>`;
+            checkFiles();
+        });
+
+        function checkFiles() {
+            if (fileStartInput.files.length > 0 && fileEndInput.files.length > 0) {
+                document.getElementById('upload-section').classList.add('hidden');
+                document.getElementById('loading').classList.remove('hidden');
+                
+                // --- METADATA EXTRACTION ---
+                const d1 = new Date(fileStartInput.files[0].lastModified);
+                const d2 = new Date(fileEndInput.files[0].lastModified);
+                
+                const formatOpts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const timeStr = `${d1.toLocaleDateString('en-US', formatOpts)} <span class="text-slate-400 mx-2">➔</span> ${d2.toLocaleDateString('en-US', formatOpts)}`;
+                document.getElementById('time-range').innerHTML = timeStr;
+
+                setTimeout(processFiles, 800); 
+            }
+        }
+
+        function processFiles() {
+            Papa.parse(fileStartInput.files[0], {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results1) {
+                    startData = results1.data;
+                    Papa.parse(fileEndInput.files[0], {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results2) {
+                            endData = results2.data;
+                            generateDashboard(startData, endData);
+                        }
+                    });
+                }
+            });
+        }
+
+        function generateDashboard(start, end) {
+            // 1. Logic Configuration
+            const focusKeywords = ['Short Shipment', 'Shipment damaged', 'Package Missing in Audit', 'Missing', 'Short', 'Damage'];
+            
+            const cleanAndFilter = (data) => {
+                return data.filter(row => {
+                    const keys = Object.keys(row);
+                    const remarkKey = keys.find(k => k.toLowerCase().includes('remark')) || 'NSL Remark';
+                    const remarkVal = row[remarkKey] || '';
+                    return focusKeywords.some(kw => remarkVal.toLowerCase().includes(kw.toLowerCase()));
+                });
+            };
+
+            const startClean = cleanAndFilter(start);
+            const endClean = cleanAndFilter(end);
+
+            const getAWB = (row) => {
+                const key = Object.keys(row).find(k => k.toLowerCase().includes('awb') && !k.toLowerCase().includes('master'));
+                return String(row[key] || row['AWB']).trim();
+            };
+
+            const startMap = new Map();
+            startClean.forEach(row => startMap.set(getAWB(row), row));
+
+            const endMap = new Map();
+            endClean.forEach(row => endMap.set(getAWB(row), row));
+
+            // 2. Comparison Logic
+            const resolved = [];
+            const newlyAdded = [];
+            const stagnant = [];
+
+            startMap.forEach((val, key) => {
+                if (!endMap.has(key)) resolved.push({...normalizeRow(val), status: 'Resolved'});
+            });
+
+            endMap.forEach((val, key) => {
+                if (!startMap.has(key)) {
+                    newlyAdded.push({...normalizeRow(val), status: 'New Influx'});
+                } else {
+                    stagnant.push({...normalizeRow(val), status: 'Pending'});
+                }
+            });
+
+            finalReport = [...resolved, ...newlyAdded, ...stagnant];
+
+            // 3. Update KPIs
+            document.getElementById('kpi-opening').innerText = startMap.size;
+            document.getElementById('kpi-resolved').innerText = resolved.length;
+            document.getElementById('kpi-new').innerText = newlyAdded.length;
+
+            const totalLoad = startMap.size + newlyAdded.length;
+            const rate = totalLoad > 0 ? ((resolved.length / totalLoad) * 100).toFixed(1) : 0;
+            document.getElementById('kpi-rate').innerText = rate + "%";
+            document.getElementById('velocity-bar').style.width = rate + "%";
+
+            // 4. Render Visuals
+            renderCategoryCards(startMap, resolved, newlyAdded, endMap);
+            renderTable(finalReport);
+
+            // Show UI
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('dl-btn').classList.remove('hidden');
+        }
+
+        function normalizeRow(row) {
+            const keys = Object.keys(row);
+            const findKey = (str) => keys.find(k => k.toLowerCase().includes(str));
+            
+            return {
+                awb: row[findKey('awb') && !findKey('master')] || row['AWB'] || 'N/A',
+                client: row[findKey('client')] || 'N/A',
+                remark: row[findKey('nsl remark')] || row[findKey('remark')] || '',
+                issue: row[findKey('issue')] || '',
+                ageing: parseFloat(row[findKey('ageing')] || 0),
+                sortCode: row[findKey('sort')] || '',
+                raw: row
+            };
+        }
+
+        function renderCategoryCards(startMap, resolved, newlyAdded, endMap) {
+            const categories = [
+                { id: 'short', label: 'Short Shipment', icon: 'fa-compress-alt', keywords: ['short'], color: 'blue' },
+                { id: 'damaged', label: 'Shipment Damaged', icon: 'fa-box-open', keywords: ['damage'], color: 'orange' },
+                { id: 'audit', label: 'Missing in Audit', icon: 'fa-search', keywords: ['audit', 'missing'], color: 'purple' }
+            ];
+
+            const container = document.getElementById('matrix-container');
+            container.innerHTML = '';
+            summaryMatrix = [];
+
+            categories.forEach(cat => {
+                const count = (collection) => {
+                    const arr = collection instanceof Map ? Array.from(collection.values()) : collection;
+                    return arr.filter(item => {
+                        let text = '';
+                        if (item.remark) text = item.remark;
+                        else {
+                            const keys = Object.keys(item);
+                            const remarkKey = keys.find(k => k.toLowerCase().includes('remark')) || 'NSL Remark';
+                            text = item[remarkKey] || '';
+                        }
+                        return cat.keywords.some(k => text.toLowerCase().includes(k));
+                    }).length;
+                };
+
+                const open = count(startMap);
+                const added = count(newlyAdded);
+                const fixed = count(resolved);
+                const close = count(endMap);
+                const net = close - open;
+
+                summaryMatrix.push({
+                    "Category": cat.label,
+                    "Opening Balance": open,
+                    "New Influx (+)": added,
+                    "Resolved (-)": fixed,
+                    "Closing Balance": close,
+                    "Net Change": net
+                });
+
+                // Calculate Progress Bar Width
+                const totalActivity = open + added;
+                const progressPct = totalActivity > 0 ? (fixed / totalActivity) * 100 : 0;
+
+                const cardHTML = `
+                <div class="card p-5 border-t-4 border-${cat.color}-500 relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-${cat.color}-100 w-8 h-8 rounded-full flex items-center justify-center text-${cat.color}-600">
+                                <i class="fas ${cat.icon}"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-700">${cat.label}</h3>
+                        </div>
+                        <div class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">PENDING</div>
+                    </div>
+                    
+                    <div class="flex items-end gap-2 mb-4">
+                        <span class="text-4xl font-bold text-slate-800">${close}</span>
+                        <span class="text-sm font-bold text-${net > 0 ? 'red' : 'green'}-500 mb-1">
+                            ${net > 0 ? '<i class="fas fa-arrow-up"></i>' : '<i class="fas fa-arrow-down"></i>'} ${Math.abs(net)}
+                        </span>
+                    </div>
+
+                    <!-- Flow Stats -->
+                    <div class="grid grid-cols-3 gap-2 text-center text-xs mb-4">
+                        <div class="bg-slate-50 rounded p-1">
+                            <div class="text-slate-400 font-bold">START</div>
+                            <div class="font-bold text-slate-700">${open}</div>
+                        </div>
+                        <div class="bg-red-50 rounded p-1">
+                            <div class="text-red-400 font-bold">NEW</div>
+                            <div class="font-bold text-red-600">+${added}</div>
+                        </div>
+                        <div class="bg-green-50 rounded p-1">
+                            <div class="text-green-400 font-bold">FIXED</div>
+                            <div class="font-bold text-green-600">-${fixed}</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-100 rounded-full h-1.5">
+                        <div class="bg-${cat.color}-500 h-1.5 rounded-full" style="width: ${progressPct}%"></div>
+                    </div>
+                    <div class="flex justify-between mt-1">
+                        <span class="text-[10px] text-slate-400 font-bold">RESOLUTION RATE</span>
+                        <span class="text-[10px] text-${cat.color}-600 font-bold">${progressPct.toFixed(0)}%</span>
+                    </div>
+                </div>`;
+                
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('main-table-body');
+            tbody.innerHTML = '';
+            document.getElementById('record-count').innerText = `${data.length} records`;
+
+            data.forEach(row => {
+                let badge = '';
+                if(row.status === 'Resolved') badge = '<span class="badge badge-resolved">Resolved</span>';
+                else if(row.status === 'New Influx') badge = '<span class="badge badge-new">New</span>';
+                else badge = '<span class="badge badge-pending">Pending</span>';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 border-b pl-4">${badge}</td>
+                    <td class="p-3 border-b font-mono font-semibold text-slate-600 text-xs md:text-sm">${row.awb}</td>
+                    <td class="p-3 border-b text-xs md:text-sm text-slate-600">${row.client}</td>
+                    <td class="p-3 border-b text-xs md:text-sm text-slate-600">${row.remark}</td>
+                    <td class="p-3 border-b text-slate-500 text-xs md:text-sm">${row.issue}</td>
+                    <td class="p-3 border-b text-right font-mono font-bold text-slate-700 pr-4">${row.ageing}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.switchTab = function(filter, btn) {
+            currentFilter = filter;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            let filtered = [];
+            if (filter === 'all') {
+                filtered = finalReport;
+            } else if (filter === 'short') {
+                filtered = finalReport.filter(r => r.remark.toLowerCase().includes('short'));
+            } else if (filter === 'damaged') {
+                filtered = finalReport.filter(r => r.remark.toLowerCase().includes('damage'));
+            } else if (filter === 'audit') {
+                filtered = finalReport.filter(r => r.remark.toLowerCase().includes('audit'));
+            }
+            renderTable(filtered);
+        }
+
+        window.searchTable = function() {
+            const input = document.getElementById('tableSearch');
+            const filter = input.value.toUpperCase();
+            const rows = document.getElementById("main-table-body").getElementsByTagName("tr");
+            for (let i = 0; i < rows.length; i++) {
+                const tdAWB = rows[i].getElementsByTagName("td")[1];
+                const tdClient = rows[i].getElementsByTagName("td")[2];
+                if (tdAWB || tdClient) {
+                    const txtValueA = tdAWB.textContent || tdAWB.innerText;
+                    const txtValueC = tdClient.textContent || tdClient.innerText;
+                    if (txtValueA.toUpperCase().indexOf(filter) > -1 || txtValueC.toUpperCase().indexOf(filter) > -1) {
+                        rows[i].style.display = "";
+                    } else {
+                        rows[i].style.display = "none";
+                    }
+                }       
+            }
+        }
+
+        window.downloadExcelReport = function() {
+            const wb = XLSX.utils.book_new();
+            
+            const ws_summary = XLSX.utils.json_to_sheet(summaryMatrix);
+            XLSX.utils.book_append_sheet(wb, ws_summary, "Executive Summary");
+
+            const formatForExcel = (arr) => arr.map(item => ({
+                Status: item.status,
+                AWB: item.awb,
+                Client: item.client,
+                Remark: item.remark,
+                Issue: item.issue,
+                Ageing: item.ageing,
+                SortCode: item.sortCode
+            }));
+
+            const ws_all = XLSX.utils.json_to_sheet(formatForExcel(finalReport));
+            XLSX.utils.book_append_sheet(wb, ws_all, "Master Data");
+
+            const ws_resolved = XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'Resolved')));
+            XLSX.utils.book_append_sheet(wb, ws_resolved, "Resolved Cases");
+
+            const ws_new = XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'New Influx')));
+            XLSX.utils.book_append_sheet(wb, ws_new, "New Influx");
+
+            const ws_pending = XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'Pending')));
+            XLSX.utils.book_append_sheet(wb, ws_pending, "Pending (Action Req)");
+
+            const date = new Date().toISOString().slice(0,10);
+            XLSX.writeFile(wb, `PST_Shift_Audit_Report_${date}.xlsx`);
+        }
+    </script>
+</body>
+</html>
