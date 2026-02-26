@@ -3,330 +3,433 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PST EYE | Accountability Dashboard</title>
+    <title>PST EYE | Operational Accountability</title>
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-        
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
-        
-        .card { 
-            background: white; 
-            border-radius: 16px; 
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); 
-            transition: all 0.3s ease;
-            border: 1px solid #e2e8f0;
+        :root {
+            --font-main: 'Plus Jakarta Sans', sans-serif;
         }
-        
-        .upload-area {
-            border: 2px dashed #cbd5e1;
-            transition: all 0.2s;
-            background-color: #f8fafc;
-        }
-        .upload-area:hover { border-color: #3b82f6; background-color: #eff6ff; }
 
-        /* Custom Scrollbar */
-        .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        body {
+            font-family: var(--font-main);
+            background-color: #ffffff;
+            color: #1e293b;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* --- MESH GRADIENT BACKGROUND ANIMATION --- */
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .blob {
+            position: absolute; filter: blur(80px); opacity: 0.6;
+            transition: transform 0.5s cubic-bezier(0.075, 0.82, 0.165, 1);
+            border-radius: 50%;
+        }
+        .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: #bae6fd; }
+        .blob-2 { bottom: -10%; right: -10%; width: 60vw; height: 60vw; background: #ddd6fe; }
+        .blob-3 { top: 40%; left: 40%; width: 40vw; height: 40vw; background: #fef3c7; opacity: 0.4; }
+
+        /* --- GLASSMORPHISM BENTO CARDS --- */
+        .bento-card {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+            border-radius: 24px;
+            transition: all 0.2s ease;
+            position: relative;
+            transform-style: preserve-3d;
+            overflow: hidden;
+        }
+        
+        .interactive-card:hover {
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            border-color: rgba(255,255,255,0.9);
+        }
+
+        .card-glare {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.8), transparent 70%);
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease; mix-blend-mode: overlay; z-index: 10;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes float-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .animate-float { animation: float-subtle 4s ease-in-out infinite; }
+        .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- UTILITIES --- */
+        .icon-sq {
+            width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; transition: transform 0.3s ease;
+        }
+        .interactive-card:hover .icon-sq { 
+            transform: scale(1.1) rotate(5deg) translateY(-2px); 
+            box-shadow: 0 10px 20px -6px currentColor;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(148, 163, 184, 0.4);
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .upload-area:hover { 
+            border-color: #6366f1; background: rgba(255, 255, 255, 0.8); transform: scale(1.02);
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* Status Badges */
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.70rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-        .badge-resolved { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-        .badge-new { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-        .badge-pending { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
-
         .tab-btn {
-            border-bottom: 2px solid transparent;
-            color: #64748b;
-            font-weight: 600;
-            transition: all 0.2s;
-            padding-bottom: 0.75rem;
+            transition: all 0.3s ease; border-bottom: 2px solid transparent;
         }
-        .tab-btn:hover { color: #3b82f6; }
-        .tab-btn.active {
-            border-bottom-color: #2563eb;
-            color: #2563eb;
-        }
+        .tab-btn.active { border-bottom-color: #6366f1; color: #4f46e5; font-weight: 700; }
 
-        .clickable-stat {
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .clickable-stat:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            filter: brightness(0.95);
-        }
-
-        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .timeline-line::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #e2e8f0; z-index: 0; }
+        /* Category Glow Borders */
+        .glow-red { border-top: 3px solid #ef4444; }
+        .glow-blue { border-top: 3px solid #3b82f6; }
+        .glow-orange { border-top: 3px solid #f97316; }
+        .glow-purple { border-top: 3px solid #a855f7; }
+        .glow-teal { border-top: 3px solid #14b8a6; }
+        .glow-indigo { border-top: 3px solid #6366f1; }
+        .glow-rose { border-top: 3px solid #f43f5e; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-8 min-h-screen">
 
-    <!-- HEADER -->
-    <div class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center">
-        <div>
-            <h1 class="text-3xl font-bold text-slate-800 tracking-tight"><i class="fas fa-eye text-blue-600 mr-2"></i>PST EYE</h1>
-            <p class="text-slate-500 mt-1 font-medium">Shift Accountability & Resolution Tracker</p>
-        </div>
-        <div class="mt-4 md:mt-0 flex gap-3">
-             <button onclick="window.location.reload()" class="bg-white text-slate-600 px-4 py-2 rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 font-semibold text-sm transition">
-                <i class="fas fa-redo mr-2"></i>Reset
-            </button>
-            <button onclick="downloadExcelReport()" id="dl-btn" class="hidden bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg shadow-md font-bold text-sm transition flex items-center">
-                <i class="fas fa-file-excel mr-2"></i>Download Excel Report
-            </button>
-        </div>
+    <!-- Animated Mesh Background -->
+    <div class="mesh-bg" id="mesh-container">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
     </div>
 
-    <!-- UPLOAD SECTION -->
-    <div id="upload-section" class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-fade-in">
-        <!-- Start File -->
-        <div class="card p-6 border-l-4 border-blue-500 relative group">
-            <div class="absolute top-4 right-4 text-blue-100 text-6xl opacity-20 transition group-hover:scale-110"><i class="fas fa-hourglass-start"></i></div>
-            <h3 class="text-lg font-bold text-slate-700 mb-2">1. Start of Shift Report</h3>
-            <p class="text-sm text-slate-500 mb-4">Upload the CSV state before the team started working.</p>
-            <label class="upload-area flex flex-col items-center justify-center h-32 rounded-lg cursor-pointer">
-                <i class="fas fa-file-csv text-3xl text-slate-400 mb-2"></i>
-                <span class="text-sm font-semibold text-slate-600" id="label-start">Click to upload CSV</span>
-                <input type="file" id="fileStart" accept=".csv" class="hidden"/>
-            </label>
-        </div>
-
-        <!-- End File -->
-        <div class="card p-6 border-l-4 border-indigo-500 relative group">
-            <div class="absolute top-4 right-4 text-indigo-100 text-6xl opacity-20 transition group-hover:scale-110"><i class="fas fa-hourglass-end"></i></div>
-            <h3 class="text-lg font-bold text-slate-700 mb-2">2. End of Shift Report</h3>
-            <p class="text-sm text-slate-500 mb-4">Upload the CSV state at the end of the shift.</p>
-            <label class="upload-area flex flex-col items-center justify-center h-32 rounded-lg cursor-pointer">
-                <i class="fas fa-file-csv text-3xl text-slate-400 mb-2"></i>
-                <span class="text-sm font-semibold text-slate-600" id="label-end">Click to upload CSV</span>
-                <input type="file" id="fileEnd" accept=".csv" class="hidden"/>
-            </label>
-        </div>
-    </div>
-
-    <!-- LOADING SPINNER -->
-    <div id="loading" class="hidden max-w-7xl mx-auto text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
-        <h2 class="text-xl font-bold text-slate-700">Analyzing Shift Performance...</h2>
-        <p class="text-slate-500">Extracting metadata and calculating velocity.</p>
-    </div>
-
-    <!-- DASHBOARD CONTENT -->
-    <div id="dashboard" class="hidden max-w-7xl mx-auto animate-fade-in">
+    <main class="w-full max-w-[1400px] mx-auto relative z-10">
         
-        <!-- TIMELINE HEADER -->
-        <div class="card mb-6 p-4 flex flex-col md:flex-row items-center justify-between bg-white border-l-4 border-slate-800">
-            <div class="flex items-center gap-3">
-                <div class="bg-slate-100 p-2 rounded-full text-slate-600"><i class="fas fa-clock"></i></div>
+        <!-- HEADER -->
+        <header id="main-header" class="mb-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 animate-fade-in">
+            <div>
+                <div class="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-white/50 border border-white/60 backdrop-blur-sm shadow-sm cursor-default">
+                    <span class="text-[10px] font-extrabold tracking-widest uppercase text-indigo-600 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle text-[8px] animate-pulse"></i> PST Operations
+                    </span>
+                </div>
+                <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                    PST <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">EYE</span>
+                </h1>
+                <p class="text-slate-500 font-medium text-sm mt-2 max-w-lg leading-relaxed">
+                    Accountability tracker, issue breakdown, and shift-velocity analyzer.
+                </p>
+            </div>
+            <div id="action-buttons" class="flex gap-2 md:gap-3 flex-wrap">
+                <button onclick="window.location.reload()" class="bento-card px-4 md:px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 hover:text-slate-900 transition flex items-center gap-2 hover:bg-white/90">
+                    <i class="fa-solid fa-rotate-right"></i> Reset
+                </button>
+                <button onclick="downloadJPGReport()" id="jpg-btn" class="hidden px-4 md:px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-md transition flex items-center gap-2 hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-camera"></i> Snap JPG
+                </button>
+                <button onclick="downloadExcelReport()" id="dl-btn" class="hidden px-4 md:px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 shadow-md transition flex items-center gap-2 hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-file-arrow-down"></i> Export Excel
+                </button>
+            </div>
+        </header>
+
+        <!-- UPLOAD SECTION -->
+        <div id="upload-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 animate-fade-in" style="animation-delay: 0.1s;">
+            <!-- Start Shift -->
+            <div class="bento-card p-8 group border border-blue-100">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-hourglass-start animate-float"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800">Opening Balance</h3>
+                        <p class="text-xs font-medium text-slate-500">Upload start of shift CSV</p>
+                    </div>
+                </div>
+                <label class="upload-area flex flex-col items-center justify-center h-32 rounded-2xl cursor-pointer">
+                    <i class="fa-solid fa-file-csv text-3xl text-slate-400 mb-2 transition group-hover:text-blue-500"></i>
+                    <span class="text-sm font-bold text-slate-600" id="label-start">Select Opening CSV</span>
+                    <input type="file" id="fileStart" accept=".csv" class="hidden"/>
+                </label>
+            </div>
+
+            <!-- End Shift -->
+            <div class="bento-card p-8 group border border-violet-100">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-50 to-violet-100 text-violet-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-hourglass-end animate-float"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800">Closing Balance</h3>
+                        <p class="text-xs font-medium text-slate-500">Upload end of shift CSV</p>
+                    </div>
+                </div>
+                <label class="upload-area flex flex-col items-center justify-center h-32 rounded-2xl cursor-pointer">
+                    <i class="fa-solid fa-file-csv text-3xl text-slate-400 mb-2 transition group-hover:text-violet-500"></i>
+                    <span class="text-sm font-bold text-slate-600" id="label-end">Select Closing CSV</span>
+                    <input type="file" id="fileEnd" accept=".csv" class="hidden"/>
+                </label>
+            </div>
+        </div>
+
+        <!-- LOADING SPINNER -->
+        <div id="loading" class="hidden flex flex-col items-center justify-center py-20 animate-fade-in">
+            <div class="relative w-16 h-16 mb-4">
+                <div class="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-800 tracking-tight">Processing Analytics...</h2>
+            <p class="text-slate-500 text-sm mt-1 font-medium">Reconciling AWBs, calculating flow & categorising issues.</p>
+        </div>
+
+        <!-- DASHBOARD CONTENT -->
+        <div id="dashboard" class="hidden animate-fade-in">
+            
+            <!-- EXPORTABLE SUMMARY AREA (Captured for JPG) -->
+            <div id="summary-export-area" class="p-1 md:p-3 -m-1 md:-m-3 rounded-3xl transition-colors duration-300">
+                
+                <!-- TIMELINE & TYPE GLANCE -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Timeline Info -->
+                    <div class="bento-card p-5 lg:col-span-1 flex flex-col justify-center border-l-4 border-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fa-regular fa-clock"></i></div>
+                            <div>
+                                <div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">METADATA RANGE</div>
+                                <div class="text-sm font-bold text-slate-800" id="time-range">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Type Glance -->
+                    <div class="bento-card p-5 lg:col-span-2 flex items-center gap-4 overflow-x-auto custom-scroll">
+                        <div class="flex-shrink-0 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-r border-slate-200 pr-4">
+                            Pending by<br><span class="text-indigo-600">Type Category</span>
+                        </div>
+                        <div id="type-glance-container" class="flex gap-3 flex-nowrap pb-1">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAIN KPIS (Clickable) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- KPI 1 -->
+                    <div class="bento-card interactive-card p-6 flex justify-between items-start group">
+                        <div class="card-glare"></div>
+                        <div>
+                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1" title="Initial total AWBs">Total Opening</p>
+                            <h2 class="text-4xl font-extrabold text-slate-800 tracking-tight cursor-pointer hover:text-indigo-600 hover:scale-105 transition-all origin-left inline-block" id="kpi-opening" onclick="showGlobalDetails('opening')">0</h2>
+                        </div>
+                        <div class="icon-sq bg-slate-100 text-slate-600"><i class="fa-solid fa-boxes-stacked animate-float"></i></div>
+                    </div>
+
+                    <!-- KPI 2 -->
+                    <div class="bento-card interactive-card p-6 flex justify-between items-start group bg-gradient-to-br from-emerald-50/50 to-transparent border-emerald-100">
+                        <div class="card-glare"></div>
+                        <div>
+                            <p class="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest mb-1" title="Successfully closed AWBs">Total Resolved</p>
+                            <h2 class="text-4xl font-extrabold text-emerald-600 tracking-tight cursor-pointer hover:text-emerald-500 hover:scale-105 transition-all origin-left inline-block" id="kpi-resolved" onclick="showGlobalDetails('resolved')">0</h2>
+                        </div>
+                        <div class="icon-sq bg-emerald-100 text-emerald-600"><i class="fa-solid fa-check-double animate-float"></i></div>
+                    </div>
+
+                    <!-- KPI 3 -->
+                    <div class="bento-card interactive-card p-6 flex justify-between items-start group bg-gradient-to-br from-rose-50/50 to-transparent border-rose-100">
+                        <div class="card-glare"></div>
+                        <div>
+                            <p class="text-[10px] font-extrabold text-rose-600 uppercase tracking-widest mb-1" title="New AWBs added to pending">New Influx</p>
+                            <h2 class="text-4xl font-extrabold text-rose-600 tracking-tight cursor-pointer hover:text-rose-500 hover:scale-105 transition-all origin-left inline-block" id="kpi-new" onclick="showGlobalDetails('new')">0</h2>
+                        </div>
+                        <div class="icon-sq bg-rose-100 text-rose-600"><i class="fa-solid fa-arrow-trend-up animate-float"></i></div>
+                    </div>
+
+                    <!-- KPI 4 (Closing Balance) -->
+                    <div class="bento-card interactive-card p-6 flex justify-between items-start group bg-slate-900 border-slate-800 text-white">
+                        <div class="card-glare"></div>
+                        <div>
+                            <p class="text-[10px] font-extrabold text-indigo-300 uppercase tracking-widest mb-1" title="Final count (Opening - Resolved + New)">Closing Balance</p>
+                            <h2 class="text-4xl font-extrabold text-white tracking-tight cursor-pointer hover:text-indigo-400 hover:scale-105 transition-all origin-left inline-block" id="kpi-closing" onclick="showGlobalDetails('closing')">0</h2>
+                        </div>
+                        <div class="icon-sq bg-white/10 text-indigo-300"><i class="fa-solid fa-flag-checkered animate-float"></i></div>
+                    </div>
+                </div>
+
+                <!-- DETAILED BREAKDOWN (7 Categories) -->
+                <div class="flex items-center gap-4 mb-4">
+                    <h3 class="text-lg font-extrabold text-slate-800 tracking-tight">Issue Breakdown</h3>
+                    <div class="h-px bg-slate-200 flex-grow"></div>
+                </div>
+                
+                <div id="matrix-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+                    <!-- Cards Injected via JS -->
+                </div>
+            </div>
+            <!-- /END EXPORTABLE SUMMARY AREA -->
+
+            <!-- MAIN DATA TABLE -->
+            <div class="bento-card p-6 overflow-hidden flex flex-col mt-4">
+                <!-- Filter Tabs -->
+                <div id="table-tabs" class="flex flex-nowrap overflow-x-auto gap-4 border-b border-slate-200 mb-6 custom-scroll pb-2">
+                    <button onclick="switchTab('all', this)" class="tab-btn active text-sm text-slate-500 font-semibold whitespace-nowrap">All Records</button>
+                    <!-- Tabs injected dynamically -->
+                </div>
+
+                <!-- Search -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                    <div class="relative w-full md:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input type="text" id="tableSearch" onkeyup="searchTable()" placeholder="Search AWB, Client, Issue..." class="w-full pl-10 pr-4 py-2.5 bg-white/50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 shadow-sm font-medium transition-all">
+                    </div>
+                    <div class="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-xs font-bold border border-slate-200" id="record-count">0 records</div>
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="overflow-x-auto custom-scroll max-h-[500px] border border-slate-200 rounded-xl bg-white/40">
+                    <table class="w-full text-left text-sm border-collapse" id="main-table">
+                        <thead class="text-[10px] text-slate-500 uppercase tracking-widest bg-slate-50/90 backdrop-blur sticky top-0 z-10 shadow-sm font-extrabold">
+                            <tr>
+                                <th class="p-4 border-b border-slate-200">State</th>
+                                <th class="p-4 border-b border-slate-200">AWB / Client</th>
+                                <th class="p-4 border-b border-slate-200">Issue / Remark</th>
+                                <th class="p-4 border-b border-slate-200">Category & Type</th>
+                                <th class="p-4 border-b border-slate-200 text-center">Boxes</th>
+                                <th class="p-4 border-b border-slate-200 text-right">Ageing (H)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="main-table-body" class="divide-y divide-slate-100 text-slate-600 font-medium">
+                            <!-- JS Populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL -->
+    <div id="dataModal" class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity opacity-0" onclick="closeModal(event)">
+        <div class="bento-card bg-white/95 w-11/12 max-w-6xl max-h-[85vh] flex flex-col transform transition-all scale-95 shadow-2xl border-white" onclick="event.stopPropagation()">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
-                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wide">Shift Timeline (From Metadata)</div>
-                    <div class="text-sm font-bold text-slate-800" id="time-range">Loading...</div>
+                    <h3 class="font-extrabold text-xl text-slate-800 tracking-tight flex items-center gap-2" id="modalTitle">Data Details</h3>
+                    <p class="text-xs font-medium text-slate-500 mt-0.5" id="modalSubtitle">Viewing specific records</p>
                 </div>
+                <button onclick="closeModal(event, true)" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition shadow-sm flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="mt-2 md:mt-0 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100">
-                Verified Data Source
-            </div>
-        </div>
-
-        <!-- MAIN KPIS -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <!-- Opening Balance -->
-            <div class="card p-5">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Opening Balance</p>
-                        <h2 class="text-3xl font-bold text-slate-800 mt-1" id="kpi-opening">0</h2>
-                    </div>
-                    <div class="p-2 bg-slate-100 rounded-lg text-slate-500">
-                        <i class="fas fa-boxes"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Resolved -->
-            <div class="card p-5 bg-green-50/50 border-green-200">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Total Resolved</p>
-                        <h2 class="text-3xl font-bold text-green-600 mt-1" id="kpi-resolved">0</h2>
-                    </div>
-                    <div class="p-2 bg-green-100 rounded-lg text-green-600">
-                        <i class="fas fa-check-double"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- New Influx -->
-            <div class="card p-5 bg-red-50/50 border-red-200">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs font-bold text-red-600 uppercase tracking-wider">New Influx</p>
-                        <h2 class="text-3xl font-bold text-red-600 mt-1" id="kpi-new">0</h2>
-                    </div>
-                    <div class="p-2 bg-red-100 rounded-lg text-red-600">
-                        <i class="fas fa-fire"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Velocity -->
-            <div class="card p-5 bg-slate-800 text-white border-slate-900">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs font-bold text-blue-300 uppercase tracking-wider">Efficiency Score</p>
-                        <h2 class="text-3xl font-bold text-white mt-1" id="kpi-rate">0%</h2>
-                    </div>
-                    <div class="p-2 bg-slate-700 rounded-lg text-blue-300">
-                        <i class="fas fa-tachometer-alt"></i>
-                    </div>
-                </div>
-                <div class="w-full bg-slate-700 rounded-full h-1.5 mt-4 overflow-hidden">
-                    <div class="bg-blue-400 h-1.5 rounded-full transition-all duration-1000" id="velocity-bar" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- DETAILED BREAKDOWN (Replaces Detailed Shift Velocity) -->
-        <h3 class="text-lg font-bold text-slate-800 mb-4 px-1">Detailed Breakdown</h3>
-        <div id="matrix-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <!-- Cards Injected via JS -->
-        </div>
-
-        <!-- MAIN DATA TABLE -->
-        <div class="card p-6">
-            <!-- Filter Tabs -->
-            <div class="flex flex-wrap gap-6 border-b border-slate-200 mb-6">
-                <button onclick="switchTab('all', this)" class="tab-btn active text-sm"><i class="fas fa-list mr-2"></i>All Activity</button>
-                <button onclick="switchTab('short', this)" class="tab-btn text-sm"><i class="fas fa-compress-alt mr-2"></i>Short Shipment</button>
-                <button onclick="switchTab('damaged', this)" class="tab-btn text-sm"><i class="fas fa-box-open mr-2"></i>Damaged</button>
-                <button onclick="switchTab('audit', this)" class="tab-btn text-sm"><i class="fas fa-search mr-2"></i>Missing in Audit</button>
-            </div>
-
-            <!-- Search -->
-            <div class="flex justify-between items-center mb-4">
-                <div class="relative w-64">
-                    <i class="fas fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
-                    <input type="text" id="tableSearch" onkeyup="searchTable()" placeholder="Search AWB or Client..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 shadow-sm">
-                </div>
-                <span class="text-xs text-slate-400 font-medium" id="record-count">0 records found</span>
-            </div>
-
-            <!-- Detailed Table -->
-            <div class="overflow-x-auto custom-scroll max-h-[500px] border border-slate-100 rounded-lg">
-                <table class="w-full text-left text-sm border-collapse" id="main-table">
-                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10 shadow-sm font-semibold">
-                        <tr>
-                            <th class="p-3 border-b pl-4">Status</th>
-                            <th class="p-3 border-b">AWB</th>
-                            <th class="p-3 border-b">Client</th>
-                            <th class="p-3 border-b">Remark (PST Focus)</th>
-                            <th class="p-3 border-b">Issue Detail</th>
-                            <th class="p-3 border-b text-right pr-4">Ageing (Hrs)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="main-table-body" class="divide-y divide-slate-100 text-slate-700">
-                        <!-- JS Populated -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- POPUP MODAL -->
-    <div id="dataModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm animate-fade-in transition-opacity">
-        <div class="bg-white rounded-xl shadow-2xl w-11/12 max-w-4xl max-h-[85vh] flex flex-col transform transition-all scale-100">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
-                <div>
-                    <h3 class="font-bold text-lg text-slate-800" id="modalTitle">Data Details</h3>
-                    <p class="text-xs text-slate-500" id="modalSubtitle">Viewing specific records</p>
-                </div>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center transition"><i class="fas fa-times text-lg"></i></button>
-            </div>
-            <div class="p-0 overflow-auto custom-scroll flex-grow">
+            
+            <div class="overflow-auto custom-scroll flex-grow p-0">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-white text-xs uppercase text-slate-500 sticky top-0 z-10 border-b border-slate-100 shadow-sm">
+                    <thead class="bg-white/90 backdrop-blur text-[10px] tracking-widest uppercase font-extrabold text-slate-500 sticky top-0 z-10 border-b border-slate-100 shadow-sm">
                         <tr>
-                            <th class="p-3 pl-5">AWB</th>
-                            <th class="p-3">Client</th>
-                            <th class="p-3">Issue/Remark</th>
-                            <th class="p-3">Sort Code</th>
-                            <th class="p-3 text-right pr-5">Ageing</th>
+                            <th class="p-4 pl-6">AWB</th>
+                            <th class="p-4">Client</th>
+                            <th class="p-4">Issue</th>
+                            <th class="p-4">Remark</th>
+                            <th class="p-4 text-center">NTC</th>
+                            <th class="p-4 text-right pr-6">Ageing</th>
                         </tr>
                     </thead>
-                    <tbody id="modalBody" class="divide-y divide-slate-50 text-slate-700"></tbody>
+                    <tbody id="modalBody" class="divide-y divide-slate-50 text-slate-600 font-medium bg-white"></tbody>
                 </table>
             </div>
-            <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-between items-center">
-                <span class="text-xs font-bold text-slate-500" id="modalCount">0 records</span>
-                <button onclick="closeModal()" class="bg-white border border-slate-300 text-slate-700 px-5 py-2 rounded-lg text-sm font-bold hover:bg-slate-100 transition shadow-sm">Close View</button>
+            
+            <div class="p-4 border-t border-slate-100 bg-slate-50/80 flex justify-between items-center rounded-b-2xl">
+                <div id="modalCount" class="text-xs text-slate-600"></div>
+                <button onclick="closeModal(event, true)" class="bg-slate-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-slate-800 transition shadow-md">Close view</button>
             </div>
         </div>
     </div>
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
+        // Data Stores
         let startData = [];
         let endData = [];
         let finalReport = []; 
         let summaryMatrix = []; 
         let currentFilter = 'all';
+        let globalMetadataRangeStr = '';
 
-        const fileStartInput = document.getElementById('fileStart');
-        const fileEndInput = document.getElementById('fileEnd');
-        const labelStart = document.getElementById('label-start');
-        const labelEnd = document.getElementById('label-end');
+        // Expanded Categories Configuration
+        const CATEGORIES = [
+            { id: 'high_ageing', label: 'High Ageing', match: ['high_ageing', 'high ageing'], icon: 'fa-clock-rotate-left', glow: 'glow-red', textCol: 'text-red-600', bgCol: 'bg-red-50' },
+            { id: 'short', label: 'Short Shipments', match: ['short received', 'short'], icon: 'fa-compress-arrows-alt', glow: 'glow-blue', textCol: 'text-blue-600', bgCol: 'bg-blue-50' },
+            { id: 'damaged', label: 'Damaged', match: ['damaged', 'damage'], icon: 'fa-box-open', glow: 'glow-orange', textCol: 'text-orange-600', bgCol: 'bg-orange-50' },
+            { id: 'audit', label: 'Audit Missing', match: ['audit_missing', 'audit missing', 'missing in audit'], icon: 'fa-magnifying-glass-chart', glow: 'glow-purple', textCol: 'text-purple-600', bgCol: 'bg-purple-50' },
+            { id: 'docs', label: 'Doc Issues', match: ['docs_missing', 'docs missing', 'document'], icon: 'fa-file-circle-xmark', glow: 'glow-teal', textCol: 'text-teal-600', bgCol: 'bg-teal-50' },
+            { id: 'cs', label: 'CS Bucket', match: ['with_cs', 'with cs', 'cs bucket'], icon: 'fa-headset', glow: 'glow-indigo', textCol: 'text-indigo-600', bgCol: 'bg-indigo-50' },
+            { id: 'fin', label: 'Fin Lock', match: ['finance_locked', 'finance locked', 'fin lock'], icon: 'fa-lock', glow: 'glow-rose', textCol: 'text-rose-600', bgCol: 'bg-rose-50' }
+        ];
+
+        // Init UI interactives
+        document.addEventListener('DOMContentLoaded', () => {
+            initTiltEffect();
+            initParallax();
+        });
 
         // Event Listeners for Upload
-        fileStartInput.addEventListener('change', (e) => {
-            if(e.target.files.length > 0) labelStart.innerHTML = `<span class="text-blue-600 font-bold"><i class="fas fa-check-circle"></i> ${e.target.files[0].name}</span>`;
+        document.getElementById('fileStart').addEventListener('change', (e) => {
+            if(e.target.files.length > 0) document.getElementById('label-start').innerHTML = `<span class="text-blue-600 font-extrabold"><i class="fa-solid fa-circle-check"></i> ${e.target.files[0].name}</span>`;
             checkFiles();
         });
         
-        fileEndInput.addEventListener('change', (e) => {
-            if(e.target.files.length > 0) labelEnd.innerHTML = `<span class="text-indigo-600 font-bold"><i class="fas fa-check-circle"></i> ${e.target.files[0].name}</span>`;
+        document.getElementById('fileEnd').addEventListener('change', (e) => {
+            if(e.target.files.length > 0) document.getElementById('label-end').innerHTML = `<span class="text-violet-600 font-extrabold"><i class="fa-solid fa-circle-check"></i> ${e.target.files[0].name}</span>`;
             checkFiles();
         });
 
         function checkFiles() {
-            if (fileStartInput.files.length > 0 && fileEndInput.files.length > 0) {
+            const f1 = document.getElementById('fileStart').files;
+            const f2 = document.getElementById('fileEnd').files;
+
+            if (f1.length > 0 && f2.length > 0) {
                 document.getElementById('upload-section').classList.add('hidden');
                 document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('loading').classList.add('flex');
                 
-                // --- METADATA EXTRACTION ---
-                const d1 = new Date(fileStartInput.files[0].lastModified);
-                const d2 = new Date(fileEndInput.files[0].lastModified);
-                
+                // Metadata
+                const d1 = new Date(f1[0].lastModified);
+                const d2 = new Date(f2[0].lastModified);
                 const formatOpts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const timeStr = `${d1.toLocaleDateString('en-US', formatOpts)} <span class="text-slate-400 mx-2">➔</span> ${d2.toLocaleDateString('en-US', formatOpts)}`;
-                document.getElementById('time-range').innerHTML = timeStr;
+                
+                globalMetadataRangeStr = `${d1.toLocaleDateString('en-US', formatOpts)} to ${d2.toLocaleDateString('en-US', formatOpts)}`;
+                document.getElementById('time-range').innerHTML = `${d1.toLocaleDateString('en-US', formatOpts)} <span class="text-slate-300 mx-1">→</span> ${d2.toLocaleDateString('en-US', formatOpts)}`;
 
                 setTimeout(processFiles, 800); 
             }
         }
 
         function processFiles() {
-            Papa.parse(fileStartInput.files[0], {
-                header: true,
-                skipEmptyLines: true,
+            Papa.parse(document.getElementById('fileStart').files[0], {
+                header: true, skipEmptyLines: true,
                 complete: function(results1) {
                     startData = results1.data;
-                    Papa.parse(fileEndInput.files[0], {
-                        header: true,
-                        skipEmptyLines: true,
+                    Papa.parse(document.getElementById('fileEnd').files[0], {
+                        header: true, skipEmptyLines: true,
                         complete: function(results2) {
                             endData = results2.data;
                             generateDashboard(startData, endData);
@@ -336,199 +439,236 @@
             });
         }
 
-        function generateDashboard(start, end) {
-            // 1. Logic Configuration
-            const focusKeywords = ['Short Shipment', 'Shipment damaged', 'Package Missing in Audit', 'Missing', 'Short', 'Damage'];
+        function normalizeRow(row) {
+            const keys = Object.keys(row);
+            const getVal = (possibleKeys) => {
+                const key = keys.find(k => possibleKeys.some(pk => k.toLowerCase().includes(pk.toLowerCase())));
+                return key ? String(row[key]).trim() : '';
+            };
+
+            let productType = getVal(['product type', 'product']);
+            if (!productType || productType.trim() === '') productType = 'B2C';
+
+            // Identify Category ID
+            const issueStr = getVal(['issue']);
+            const catStr = getVal(['category']);
+            const remarkStr = getVal(['nsl remark', 'remark']);
+            const combinedForSearch = (issueStr + " " + catStr + " " + remarkStr).toLowerCase();
             
-            const cleanAndFilter = (data) => {
-                return data.filter(row => {
-                    const keys = Object.keys(row);
-                    const remarkKey = keys.find(k => k.toLowerCase().includes('remark')) || 'NSL Remark';
-                    const remarkVal = row[remarkKey] || '';
-                    return focusKeywords.some(kw => remarkVal.toLowerCase().includes(kw.toLowerCase()));
-                });
-            };
+            let matchedCatId = 'unknown';
+            for(let cat of CATEGORIES) {
+                if(cat.match.some(m => combinedForSearch.includes(m))) {
+                    matchedCatId = cat.id;
+                    break;
+                }
+            }
 
-            const startClean = cleanAndFilter(start);
-            const endClean = cleanAndFilter(end);
-
-            const getAWB = (row) => {
-                const key = Object.keys(row).find(k => k.toLowerCase().includes('awb') && !k.toLowerCase().includes('master'));
-                return String(row[key] || row['AWB']).trim();
+            return {
+                awb: getVal(['awb', 'waybill']) || 'N/A',
+                client: getVal(['client', 'customer']) || 'N/A',
+                remark: remarkStr || 'No Remark',
+                issueRaw: issueStr || 'No Issue',
+                categoryMatched: matchedCatId,
+                ageing: parseFloat(getVal(['ageing']) || 0),
+                sortCode: getVal(['sort code', 'ntc']) || '-',
+                productType: productType,
+                boxes: parseInt(getVal(['bag count', 'boxes', 'shipments in bag']) || 1),
+                type: getVal(['type']) || 'B2C',
+                raw: row
             };
+        }
+
+        function generateDashboard(start, end) {
+            const startClean = start.map(normalizeRow).filter(r => r.categoryMatched !== 'unknown');
+            const endClean = end.map(normalizeRow).filter(r => r.categoryMatched !== 'unknown');
 
             const startMap = new Map();
-            startClean.forEach(row => startMap.set(getAWB(row), row));
+            startClean.forEach(row => startMap.set(row.awb, row));
 
             const endMap = new Map();
-            endClean.forEach(row => endMap.set(getAWB(row), row));
+            endClean.forEach(row => endMap.set(row.awb, row));
 
-            // 2. Comparison Logic
             const resolved = [];
             const newlyAdded = [];
             const stagnant = [];
 
             startMap.forEach((val, key) => {
-                if (!endMap.has(key)) resolved.push({...normalizeRow(val), status: 'Resolved'});
+                if (!endMap.has(key)) resolved.push({...val, status: 'Resolved'});
             });
 
             endMap.forEach((val, key) => {
                 if (!startMap.has(key)) {
-                    newlyAdded.push({...normalizeRow(val), status: 'New Influx'});
+                    newlyAdded.push({...val, status: 'New Influx'});
                 } else {
-                    stagnant.push({...normalizeRow(val), status: 'Pending'});
+                    stagnant.push({...val, status: 'Pending'});
                 }
             });
 
             finalReport = [...resolved, ...newlyAdded, ...stagnant];
 
-            // 3. Update KPIs
-            document.getElementById('kpi-opening').innerText = startMap.size;
+            // Update Global KPIs (Standard AWB counting)
+            const openArr = Array.from(startMap.values());
+            document.getElementById('kpi-opening').innerText = openArr.length;
             document.getElementById('kpi-resolved').innerText = resolved.length;
             document.getElementById('kpi-new').innerText = newlyAdded.length;
+            document.getElementById('kpi-closing').innerText = endMap.size; // Closing Balance
 
-            const totalLoad = startMap.size + newlyAdded.length;
-            const rate = totalLoad > 0 ? ((resolved.length / totalLoad) * 100).toFixed(1) : 0;
-            document.getElementById('kpi-rate').innerText = rate + "%";
-            document.getElementById('velocity-bar').style.width = rate + "%";
-
-            // 4. Render Visuals
+            // Render Modules
+            renderTypeGlance(newlyAdded, stagnant);
             renderCategoryCards(startMap, resolved, newlyAdded, endMap);
+            buildTableTabs();
             renderTable(finalReport);
 
-            // Show UI
+            // Toggle Visibility
             document.getElementById('loading').classList.add('hidden');
+            document.getElementById('loading').classList.remove('flex');
             document.getElementById('dashboard').classList.remove('hidden');
             document.getElementById('dl-btn').classList.remove('hidden');
+            document.getElementById('jpg-btn').classList.remove('hidden');
+            initTiltEffect(); 
         }
 
-        function normalizeRow(row) {
-            const keys = Object.keys(row);
-            const findKey = (str) => keys.find(k => k.toLowerCase().includes(str));
+        function renderTypeGlance(newlyAdded, stagnant) {
+            const container = document.getElementById('type-glance-container');
+            const activeItems = [...newlyAdded, ...stagnant]; 
             
-            return {
-                awb: row[findKey('awb') && !findKey('master')] || row['AWB'] || 'N/A',
-                client: row[findKey('client')] || 'N/A',
-                remark: row[findKey('nsl remark')] || row[findKey('remark')] || '',
-                issue: row[findKey('issue')] || '',
-                ageing: parseFloat(row[findKey('ageing')] || 0),
-                sortCode: row[findKey('sort')] || '',
-                raw: row
-            };
+            const typeGroups = {};
+            activeItems.forEach(item => {
+                const t = item.type && item.type !== '' ? item.type : 'B2C';
+                if (!typeGroups[t]) typeGroups[t] = [];
+                typeGroups[t].push(item);
+            });
+
+            container.innerHTML = '';
+            if(Object.keys(typeGroups).length === 0) {
+                 container.innerHTML = '<span class="text-xs text-slate-400 font-medium">No pending data.</span>';
+                 return;
+            }
+
+            Object.entries(typeGroups)
+                .map(([ptype, items]) => ({ ptype, count: items.length }))
+                .sort((a,b) => b.count - a.count)
+                .forEach(({ptype, count}) => {
+                const html = `
+                    <div onclick="showGlobalDetails('type', '${ptype}')" class="px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-w-[110px] flex-shrink-0 cursor-pointer hover:border-indigo-300 hover:shadow-md hover:-translate-y-1 transition-all group">
+                        <span class="text-[9px] font-extrabold text-slate-400 group-hover:text-indigo-500 uppercase tracking-wide truncate transition-colors" title="${ptype}">${ptype}</span>
+                        <div class="flex items-baseline gap-1.5 mt-0.5">
+                            <span class="text-xl font-bold text-slate-800 leading-none group-hover:text-indigo-600 transition-colors">${count}</span>
+                            <span class="text-[10px] text-slate-500 font-medium">AWBs</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
         }
 
         function renderCategoryCards(startMap, resolved, newlyAdded, endMap) {
-            const categories = [
-                { id: 'short', label: 'Short Shipment', icon: 'fa-compress-alt', keywords: ['short'], color: 'blue' },
-                { id: 'damaged', label: 'Shipment Damaged', icon: 'fa-box-open', keywords: ['damage'], color: 'orange' },
-                { id: 'audit', label: 'Missing in Audit', icon: 'fa-search', keywords: ['audit', 'missing'], color: 'purple' }
-            ];
-
             const container = document.getElementById('matrix-container');
             container.innerHTML = '';
             summaryMatrix = [];
 
-            categories.forEach(cat => {
-                const count = (collection) => {
-                    const arr = collection instanceof Map ? Array.from(collection.values()) : collection;
-                    return arr.filter(item => {
-                        let text = '';
-                        if (item.remark) text = item.remark;
-                        else {
-                            const keys = Object.keys(item);
-                            const remarkKey = keys.find(k => k.toLowerCase().includes('remark')) || 'NSL Remark';
-                            text = item[remarkKey] || '';
-                        }
-                        return cat.keywords.some(k => text.toLowerCase().includes(k));
-                    }).length;
-                };
-
-                // Get Lists for Age Calculation (Closing Balance items for this category)
-                const getItems = (map) => {
-                     const arr = Array.from(map.values());
-                     return arr.filter(item => {
-                         let text = item.remark || item[Object.keys(item).find(k => k.toLowerCase().includes('remark')) || 'NSL Remark'] || '';
-                         return cat.keywords.some(k => text.toLowerCase().includes(k));
-                     });
-                };
+            CATEGORIES.forEach(cat => {
+                const openItems = Array.from(startMap.values()).filter(i => i.categoryMatched === cat.id);
+                const addedItems = newlyAdded.filter(i => i.categoryMatched === cat.id);
+                const fixedItems = resolved.filter(i => i.categoryMatched === cat.id);
+                const closingItems = Array.from(endMap.values()).filter(i => i.categoryMatched === cat.id);
                 
-                const closingItems = getItems(endMap);
-                const ageBucket1 = closingItems.filter(i => { let age = parseFloat(i.ageing || i['Ageing (Hrs)']); return age < 48; }).length;
-                const ageBucket2 = closingItems.filter(i => { let age = parseFloat(i.ageing || i['Ageing (Hrs)']); return age >= 48 && age <= 72; }).length;
-                const ageBucket3 = closingItems.filter(i => { let age = parseFloat(i.ageing || i['Ageing (Hrs)']); return age > 72; }).length;
-
-                const open = count(startMap);
-                const added = count(newlyAdded);
-                const fixed = count(resolved);
-                const close = count(endMap);
+                // Pure AWB counting logic
+                const open = openItems.length;
+                const added = addedItems.length;
+                const fixed = fixedItems.length;
+                const close = closingItems.length;
                 const net = close - open;
 
-                summaryMatrix.push({ "Category": cat.label, "Opening Balance": open, "New Influx (+)": added, "Resolved (-)": fixed, "Closing Balance": close, "Net Change": net });
+                // --- AGE SPECTRUM LOGIC ---
+                const ageBucket1 = closingItems.filter(i => i.ageing < 48).length;
+                const ageBucket2 = closingItems.filter(i => i.ageing >= 48 && i.ageing <= 72).length;
+                const ageBucket3 = closingItems.filter(i => i.ageing > 72).length;
 
-                // Calculate Progress Bar Width
-                const totalActivity = open + added;
-                const progressPct = totalActivity > 0 ? (fixed / totalActivity) * 100 : 0;
+                // --- TYPE BREAKDOWN LOGIC ---
+                const typeGroups = {};
+                closingItems.forEach(i => {
+                    const t = i.type || 'B2C';
+                    if(!typeGroups[t]) typeGroups[t] = [];
+                    typeGroups[t].push(i);
+                });
+                
+                let typeHtml = '';
+                const sortedTypes = Object.entries(typeGroups)
+                    .map(([t, items]) => ({ t, c: items.length }))
+                    .sort((a,b) => b.c - a.c);
+
+                if(sortedTypes.length > 0) {
+                    typeHtml = sortedTypes.map(({t, c}) => 
+                        `<span onclick="event.stopPropagation(); showDetails('${cat.id}', 'type', '${t}')" class="px-2 py-1 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-600 shadow-sm truncate max-w-[140px] cursor-pointer hover:bg-slate-100 hover:scale-105 transition-all hover:text-indigo-600" title="${t}">${t}: ${c}</span>`
+                    ).join('');
+                } else {
+                    typeHtml = `<span class="text-[10px] text-slate-400 italic">No pending items.</span>`;
+                }
+
+                summaryMatrix.push({ "Category": cat.label, "Opening": open, "New (+)": added, "Resolved (-)": fixed, "Closing": close });
 
                 const cardHTML = `
-                <div class="card p-5 border-t-4 border-${cat.color}-500 relative overflow-hidden flex flex-col h-full">
-                    <div class="flex justify-between items-start mb-4">
+                <div class="bento-card interactive-card p-4 flex flex-col h-full ${cat.glow} group">
+                    <div class="card-glare"></div>
+                    
+                    <!-- Header -->
+                    <div class="flex justify-between items-start mb-3 z-10">
                         <div class="flex items-center gap-2">
-                            <div class="bg-${cat.color}-100 w-8 h-8 rounded-full flex items-center justify-center text-${cat.color}-600">
-                                <i class="fas ${cat.icon}"></i>
+                            <div class="w-8 h-8 rounded-lg ${cat.bgCol} ${cat.textCol} flex items-center justify-center shadow-inner">
+                                <i class="fa-solid ${cat.icon}"></i>
                             </div>
-                            <h3 class="font-bold text-slate-700">${cat.label}</h3>
+                            <h3 class="font-extrabold text-slate-800 text-sm md:text-base leading-tight">${cat.label}</h3>
                         </div>
-                        <div class="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 uppercase">Live Stats</div>
                     </div>
                     
-                    <div class="flex items-end gap-2 mb-4 cursor-pointer" onclick="showDetails('${cat.id}', 'closing')" title="Click to view pending items">
-                        <span class="text-4xl font-bold text-slate-800 hover:text-blue-600 transition">${close}</span>
-                        <span class="text-sm font-bold text-${net > 0 ? 'red' : 'green'}-500 mb-1">
-                            ${net > 0 ? '<i class="fas fa-arrow-up"></i>' : '<i class="fas fa-arrow-down"></i>'} ${Math.abs(net)}
+                    <!-- Main Value -->
+                    <div class="flex items-end gap-2 mb-3 z-10 cursor-pointer hover:scale-105 transition-transform origin-left inline-flex" onclick="showDetails('${cat.id}', 'closing')" title="Closing Balance (Total pending AWBs)">
+                        <span class="text-3xl font-extrabold text-slate-800 tracking-tight leading-none hover:text-indigo-600 transition-colors">${close}</span>
+                        <span class="text-[10px] font-bold ${net > 0 ? 'text-red-500' : 'text-emerald-500'} mb-0.5 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 shadow-sm">
+                            ${net > 0 ? '<i class="fa-solid fa-arrow-up"></i>' : '<i class="fa-solid fa-arrow-down"></i>'} ${Math.abs(net)}
                         </span>
                     </div>
 
-                    <!-- Clickable Flow Stats -->
-                    <div class="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-                        <div class="bg-slate-50 rounded p-1 clickable-stat border border-transparent hover:border-slate-300" onclick="showDetails('${cat.id}', 'opening')">
-                            <div class="text-slate-400 font-bold text-[10px]">START</div>
+                    <!-- Flow Stats -->
+                    <div class="grid grid-cols-3 gap-1.5 text-center text-xs mb-3 z-10">
+                        <div class="bg-slate-50 rounded p-1 border border-transparent hover:border-slate-300 cursor-pointer transition-all hover:-translate-y-0.5 group/flow" onclick="showDetails('${cat.id}', 'opening')">
+                            <div class="text-slate-400 font-extrabold text-[8px] tracking-wider mb-0.5 group-hover/flow:text-slate-600">OPEN</div>
                             <div class="font-bold text-slate-700">${open}</div>
                         </div>
-                        <div class="bg-red-50 rounded p-1 clickable-stat border border-transparent hover:border-red-300" onclick="showDetails('${cat.id}', 'new')">
-                            <div class="text-red-400 font-bold text-[10px]">NEW</div>
-                            <div class="font-bold text-red-600">+${added}</div>
+                        <div class="bg-rose-50/50 rounded p-1 border border-transparent hover:border-rose-300 cursor-pointer transition-all hover:-translate-y-0.5 group/flow" onclick="showDetails('${cat.id}', 'new')">
+                            <div class="text-rose-400 font-extrabold text-[8px] tracking-wider mb-0.5 group-hover/flow:text-rose-600">NEW</div>
+                            <div class="font-bold text-rose-600">+${added}</div>
                         </div>
-                        <div class="bg-green-50 rounded p-1 clickable-stat border border-transparent hover:border-green-300" onclick="showDetails('${cat.id}', 'resolved')">
-                            <div class="text-green-400 font-bold text-[10px]">FIXED</div>
-                            <div class="font-bold text-green-600">-${fixed}</div>
+                        <div class="bg-emerald-50/50 rounded p-1 border border-transparent hover:border-emerald-300 cursor-pointer transition-all hover:-translate-y-0.5 group/flow" onclick="showDetails('${cat.id}', 'resolved')">
+                            <div class="text-emerald-400 font-extrabold text-[8px] tracking-wider mb-0.5 group-hover/flow:text-emerald-600">FIXED</div>
+                            <div class="font-bold text-emerald-600">-${fixed}</div>
                         </div>
                     </div>
 
-                    <!-- Progress Bar -->
-                    <div class="w-full bg-slate-100 rounded-full h-1.5 mb-1">
-                        <div class="bg-${cat.color}-500 h-1.5 rounded-full" style="width: ${progressPct}%"></div>
-                    </div>
-                    <div class="flex justify-between mb-4">
-                        <span class="text-[10px] text-slate-400 font-bold">RESOLUTION RATE</span>
-                        <span class="text-[10px] text-${cat.color}-600 font-bold">${progressPct.toFixed(0)}%</span>
+                    <!-- Age Spectrum -->
+                    <div class="grid grid-cols-3 gap-1 mb-3 z-10">
+                        <div class="bg-emerald-50/60 rounded p-1 border border-transparent hover:border-emerald-300 cursor-pointer transition-all text-center hover:-translate-y-0.5 group/age" onclick="showDetails('${cat.id}', 'age_low')">
+                            <div class="text-[8px] font-extrabold text-emerald-600 mb-0.5 group-hover/age:text-emerald-700 uppercase tracking-widest">&lt; 48H</div>
+                            <div class="font-bold text-slate-700 text-sm">${ageBucket1}</div>
+                        </div>
+                        <div class="bg-orange-50/60 rounded p-1 border border-transparent hover:border-orange-300 cursor-pointer transition-all text-center hover:-translate-y-0.5 group/age" onclick="showDetails('${cat.id}', 'age_mid')">
+                            <div class="text-[8px] font-extrabold text-orange-600 mb-0.5 group-hover/age:text-orange-700 uppercase tracking-widest">48-72H</div>
+                            <div class="font-bold text-slate-700 text-sm">${ageBucket2}</div>
+                        </div>
+                        <div class="bg-rose-50/60 rounded p-1 border border-transparent hover:border-rose-300 cursor-pointer transition-all text-center hover:-translate-y-0.5 group/age" onclick="showDetails('${cat.id}', 'age_high')">
+                            <div class="text-[8px] font-extrabold text-rose-600 mb-0.5 group-hover/age:text-rose-700 uppercase tracking-widest">&gt; 72H</div>
+                            <div class="font-bold text-slate-700 text-sm">${ageBucket3}</div>
+                        </div>
                     </div>
 
-                    <!-- Age Spectrum (Breakdown) -->
-                    <div class="mt-auto pt-3 border-t border-slate-100">
-                        <p class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wide">Age Spectrum -</p>
-                        <div class="grid grid-cols-3 gap-1">
-                            <div class="bg-emerald-50 rounded border border-emerald-100 p-1.5 text-center clickable-stat hover:border-emerald-300" onclick="showDetails('${cat.id}', 'age_low')">
-                                <div class="text-[9px] font-bold text-emerald-600 uppercase mb-0.5">&lt; 48h</div>
-                                <div class="font-bold text-slate-700 text-sm">${ageBucket1}</div>
-                            </div>
-                            <div class="bg-orange-50 rounded border border-orange-100 p-1.5 text-center clickable-stat hover:border-orange-300" onclick="showDetails('${cat.id}', 'age_mid')">
-                                <div class="text-[9px] font-bold text-orange-600 uppercase mb-0.5">48-72h</div>
-                                <div class="font-bold text-slate-700 text-sm">${ageBucket2}</div>
-                            </div>
-                            <div class="bg-rose-50 rounded border border-rose-100 p-1.5 text-center clickable-stat hover:border-rose-300" onclick="showDetails('${cat.id}', 'age_high')">
-                                <div class="text-[9px] font-bold text-rose-600 uppercase mb-0.5">&gt; 72h</div>
-                                <div class="font-bold text-slate-700 text-sm">${ageBucket3}</div>
-                            </div>
+                    <!-- Type Breakdown -->
+                    <div class="mt-auto pt-2 border-t border-slate-100/80 z-10">
+                        <p class="text-[8px] font-extrabold text-slate-400 mb-1.5 uppercase tracking-widest flex justify-between">
+                            <span>Type Breakdown</span> <span class="font-medium lowercase">pending AWBs</span>
+                        </p>
+                        <div class="flex flex-wrap gap-1 max-h-[50px] overflow-y-auto custom-scroll pr-1">
+                            ${typeHtml}
                         </div>
                     </div>
                 </div>`;
@@ -537,158 +677,216 @@
             });
         }
 
-        // --- POPUP LOGIC ---
-        function showDetails(categoryKey, type) {
-            const catMap = { 'short': ['short'], 'damaged': ['damage'], 'audit': ['audit', 'missing'] };
-            const keywords = catMap[categoryKey] || [];
-            
+        // --- GLOBAL KPI MODAL LOGIC ---
+        function showGlobalDetails(filterType, subType = '') {
+            let dataset = [];
+            let titleType = '';
+            let subtitle = 'Across all categories';
+
+            if (filterType === 'opening') {
+                dataset = finalReport.filter(r => r.status === 'Resolved' || r.status === 'Pending');
+                titleType = 'Total Opening Balance';
+            } else if (filterType === 'new') {
+                dataset = finalReport.filter(r => r.status === 'New Influx');
+                titleType = 'Total New Influx';
+            } else if (filterType === 'resolved') {
+                dataset = finalReport.filter(r => r.status === 'Resolved');
+                titleType = 'Total Resolved Cases';
+            } else if (filterType === 'closing') {
+                dataset = finalReport.filter(r => r.status === 'New Influx' || r.status === 'Pending');
+                titleType = 'Total Closing Balance';
+            } else if (filterType === 'type') {
+                dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && (r.type || 'B2C') === subType);
+                titleType = `Pending Balance`;
+                subtitle = `Type Filter: ${subType}`;
+            }
+
+            populateModal('Global View', titleType, subtitle, dataset);
+        }
+
+        // --- CATEGORY MODAL LOGIC ---
+        function showDetails(catId, filterType, subType = '') {
             let dataset = [];
             let titleType = '';
 
-            // Filter main FinalReport based on Type
-            if (type === 'opening') {
-                // Opening = Resolved OR Pending
+            if (filterType === 'opening') {
                 dataset = finalReport.filter(r => r.status === 'Resolved' || r.status === 'Pending');
                 titleType = 'Opening Balance';
-            } else if (type === 'new') {
+            } else if (filterType === 'new') {
                 dataset = finalReport.filter(r => r.status === 'New Influx');
                 titleType = 'New Influx';
-            } else if (type === 'resolved') {
+            } else if (filterType === 'resolved') {
                 dataset = finalReport.filter(r => r.status === 'Resolved');
                 titleType = 'Resolved Cases';
-            } else if (type === 'closing') {
-                // Closing = New Influx OR Pending
+            } else if (filterType === 'closing') {
                 dataset = finalReport.filter(r => r.status === 'New Influx' || r.status === 'Pending');
-                titleType = 'Closing Balance';
-            } else if (type === 'age_low') {
-                // < 48h (Closing items)
+                titleType = 'Closing Balance (Pending)';
+            } else if (filterType === 'age_low') {
                 dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && r.ageing < 48);
                 titleType = 'Closing Balance (< 48h)';
-            } else if (type === 'age_mid') {
-                // 48-72h (Closing items)
+            } else if (filterType === 'age_mid') {
                 dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && r.ageing >= 48 && r.ageing <= 72);
                 titleType = 'Closing Balance (48-72h)';
-            } else if (type === 'age_high') {
-                // > 72h (Closing items)
+            } else if (filterType === 'age_high') {
                 dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && r.ageing > 72);
                 titleType = 'Closing Balance (> 72h)';
+            } else if (filterType === 'type') {
+                dataset = finalReport.filter(r => (r.status === 'New Influx' || r.status === 'Pending') && (r.type || 'B2C') === subType);
+                titleType = `Closing Balance (Type: ${subType})`;
             }
 
-            // Further Filter by Category Keyword
-            const filteredData = dataset.filter(item => {
-                const txt = (item.remark || '').toLowerCase();
-                return keywords.some(k => txt.includes(k));
-            });
+            // Apply specific Category filter
+            const filteredData = dataset.filter(item => item.categoryMatched === catId);
+            const catConfig = CATEGORIES.find(c => c.id === catId);
 
-            // Populate Modal
+            populateModal(catConfig.label, titleType, `${filteredData.length} active AWBs`, filteredData);
+        }
+
+        function populateModal(mainTitle, subTitle, contextStr, dataset) {
             const tbody = document.getElementById('modalBody');
             tbody.innerHTML = '';
             
-            document.getElementById('modalTitle').innerText = `${categoryKey.toUpperCase()} - ${titleType}`;
-            document.getElementById('modalSubtitle').innerText = `${filteredData.length} records found`;
-            document.getElementById('modalCount').innerText = `${filteredData.length} total records`;
+            document.getElementById('modalTitle').innerHTML = `${mainTitle} <i class="fa-solid fa-angle-right text-slate-300 text-sm mx-1"></i> <span class="text-indigo-600">${subTitle}</span>`;
+            document.getElementById('modalSubtitle').innerText = contextStr;
+            
+            document.getElementById('modalCount').innerHTML = `<span class="text-slate-800 font-extrabold text-sm">${dataset.length}</span> Total AWBs`;
 
-            if (filteredData.length === 0) {
-                 tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No records found for this selection.</td></tr>';
+            if (dataset.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400 font-medium">No records found for this selection.</td></tr>';
             } else {
-                filteredData.forEach(row => {
+                dataset.sort((a,b) => b.ageing - a.ageing).forEach(row => {
                     const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-50 transition";
+                    tr.className = "hover:bg-slate-50/80 transition-colors";
                     
-                    // Color code age if high
-                    let ageClass = "text-slate-600";
-                    if(row.ageing > 72) ageClass = "text-red-600 font-bold";
-                    else if(row.ageing > 48) ageClass = "text-orange-600 font-bold";
+                    let ageClass = "text-slate-600 bg-slate-100";
+                    if(row.ageing > 72) ageClass = "text-rose-700 bg-rose-100 border border-rose-200";
+                    else if(row.ageing > 48) ageClass = "text-orange-700 bg-orange-100 border border-orange-200";
+
+                    let awbDisplay = `<div class="font-bold">${row.awb}</div>`;
 
                     tr.innerHTML = `
-                        <td class="p-3 pl-5 font-mono font-semibold text-slate-700 text-xs">${row.awb}</td>
-                        <td class="p-3 text-xs text-slate-600">${row.client}</td>
-                        <td class="p-3 text-xs text-slate-600">${row.remark}</td>
-                        <td class="p-3 text-xs text-slate-500">${row.sortCode}</td>
-                        <td class="p-3 pr-5 text-right font-mono text-xs ${ageClass}">${row.ageing}</td>
+                        <td class="p-4 pl-6 font-mono text-slate-700 text-xs">${awbDisplay}</td>
+                        <td class="p-4 text-xs font-semibold text-slate-800">${row.client}</td>
+                        <td class="p-4 text-xs font-bold text-slate-700">${row.issueRaw}</td>
+                        <td class="p-4 text-xs text-slate-500 max-w-xs truncate" title="${row.remark}">${row.remark}</td>
+                        <td class="p-4 text-xs text-slate-500 text-center font-bold">${row.sortCode}</td>
+                        <td class="p-4 pr-6 text-right">
+                            <span class="px-2 py-0.5 rounded text-xs font-extrabold font-mono shadow-sm ${ageClass}">${row.ageing}</span>
+                        </td>
                     `;
                     tbody.appendChild(tr);
                 });
             }
 
-            document.getElementById('dataModal').classList.remove('hidden', 'opacity-0');
-            document.getElementById('dataModal').classList.add('flex', 'opacity-100');
+            const modal = document.getElementById('dataModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.bento-card').classList.replace('scale-95', 'scale-100'); }, 10);
         }
 
-        function closeModal() {
+        function closeModal(event, force = false) {
             const modal = document.getElementById('dataModal');
-            modal.classList.add('opacity-0');
-            modal.classList.remove('opacity-100');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }, 200);
+            if (force || event.target === modal) {
+                modal.classList.add('opacity-0');
+                modal.querySelector('.bento-card').classList.replace('scale-100', 'scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+
+        // --- TABLE LOGIC ---
+        function buildTableTabs() {
+            const tabsContainer = document.getElementById('table-tabs');
+            tabsContainer.innerHTML = `<button onclick="switchTab('all', this)" class="tab-btn active text-sm text-slate-500 font-semibold whitespace-nowrap">All Records</button>`;
+            
+            CATEGORIES.forEach(cat => {
+                tabsContainer.innerHTML += `<button onclick="switchTab('${cat.id}', this)" class="tab-btn text-sm text-slate-500 font-semibold whitespace-nowrap">${cat.label}</button>`;
+            });
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('main-table-body');
             tbody.innerHTML = '';
-            document.getElementById('record-count').innerText = `${data.length} records`;
+            document.getElementById('record-count').innerText = `${data.length} AWBs`;
 
             data.forEach(row => {
                 let badge = '';
-                if(row.status === 'Resolved') badge = '<span class="badge badge-resolved">Resolved</span>';
-                else if(row.status === 'New Influx') badge = '<span class="badge badge-new">New</span>';
-                else badge = '<span class="badge badge-pending">Pending</span>';
+                if(row.status === 'Resolved') badge = '<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-extrabold uppercase tracking-wide">Resolved</span>';
+                else if(row.status === 'New Influx') badge = '<span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold uppercase tracking-wide">New</span>';
+                else badge = '<span class="px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-200 text-[10px] font-extrabold uppercase tracking-wide">Pending</span>';
+
+                const catConfig = CATEGORIES.find(c => c.id === row.categoryMatched);
+                const catLabel = catConfig ? catConfig.label : 'Other';
+
+                let awbDisplay = `<div class="font-mono font-bold text-slate-800 text-sm">${row.awb}</div>`;
 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition";
+                tr.className = "hover:bg-white/60 transition-colors";
                 tr.innerHTML = `
-                    <td class="p-3 border-b pl-4">${badge}</td>
-                    <td class="p-3 border-b font-mono font-semibold text-slate-600 text-xs md:text-sm">${row.awb}</td>
-                    <td class="p-3 border-b text-xs md:text-sm text-slate-600">${row.client}</td>
-                    <td class="p-3 border-b text-xs md:text-sm text-slate-600">${row.remark}</td>
-                    <td class="p-3 border-b text-slate-500 text-xs md:text-sm">${row.issue}</td>
-                    <td class="p-3 border-b text-right font-mono font-bold text-slate-700 pr-4">${row.ageing}</td>
+                    <td class="p-4 border-b border-slate-100/50">${badge}</td>
+                    <td class="p-4 border-b border-slate-100/50">
+                        ${awbDisplay}
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1">${row.client}</div>
+                    </td>
+                    <td class="p-4 border-b border-slate-100/50 max-w-xs">
+                        <div class="text-sm text-slate-700 font-semibold truncate" title="${row.issueRaw}">${row.issueRaw || '-'}</div>
+                        <div class="text-xs text-slate-500 truncate mt-0.5" title="${row.remark}">${row.remark}</div>
+                    </td>
+                    <td class="p-4 border-b border-slate-100/50">
+                        <div class="text-xs font-bold text-slate-700">${catLabel}</div>
+                        <div class="text-[10px] font-bold text-indigo-500 mt-0.5 bg-indigo-50 inline-block px-1.5 rounded">${row.type}</div>
+                    </td>
+                    <td class="p-4 border-b border-slate-100/50 text-center font-bold text-slate-600">${row.boxes}</td>
+                    <td class="p-4 border-b border-slate-100/50 text-right font-mono font-extrabold text-slate-800">${row.ageing}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        window.switchTab = function(filter, btn) {
-            currentFilter = filter;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        window.switchTab = function(filterId, btn) {
+            currentFilter = filterId;
+            document.querySelectorAll('#table-tabs .tab-btn').forEach(b => {
+                b.classList.remove('active', 'text-indigo-600');
+                b.classList.add('text-slate-500');
+            });
+            btn.classList.add('active', 'text-indigo-600');
+            btn.classList.remove('text-slate-500');
 
-            let filtered = [];
-            if (filter === 'all') {
-                filtered = finalReport;
-            } else if (filter === 'short') {
-                filtered = finalReport.filter(r => r.remark.toLowerCase().includes('short'));
-            } else if (filter === 'damaged') {
-                filtered = finalReport.filter(r => r.remark.toLowerCase().includes('damage'));
-            } else if (filter === 'audit') {
-                filtered = finalReport.filter(r => r.remark.toLowerCase().includes('audit'));
-            }
+            let filtered = filterId === 'all' ? finalReport : finalReport.filter(r => r.categoryMatched === filterId);
             renderTable(filtered);
+            searchTable();
         }
 
         window.searchTable = function() {
             const input = document.getElementById('tableSearch');
             const filter = input.value.toUpperCase();
             const rows = document.getElementById("main-table-body").getElementsByTagName("tr");
+            
+            let visibleCount = 0;
             for (let i = 0; i < rows.length; i++) {
-                const tdAWB = rows[i].getElementsByTagName("td")[1];
-                const tdClient = rows[i].getElementsByTagName("td")[2];
-                if (tdAWB || tdClient) {
-                    const txtValueA = tdAWB.textContent || tdAWB.innerText;
-                    const txtValueC = tdClient.textContent || tdClient.innerText;
-                    if (txtValueA.toUpperCase().indexOf(filter) > -1 || txtValueC.toUpperCase().indexOf(filter) > -1) {
-                        rows[i].style.display = "";
-                    } else {
-                        rows[i].style.display = "none";
-                    }
-                }       
+                const textContent = rows[i].textContent || rows[i].innerText;
+                if (textContent.toUpperCase().indexOf(filter) > -1) {
+                    rows[i].style.display = "";
+                    visibleCount++;
+                } else {
+                    rows[i].style.display = "none";
+                }
             }
+            document.getElementById('record-count').innerText = `${visibleCount} AWBs`;
         }
 
+        // --- EXPORT FEATURES ---
         window.downloadExcelReport = function() {
             const wb = XLSX.utils.book_new();
+            
+            // Generate Info/Metadata Sheet
+            const ws_info = XLSX.utils.aoa_to_sheet([
+                ["PST EYE - Operational Accountability Report"],
+                ["Metadata Range:", globalMetadataRangeStr],
+                ["Exported On:", new Date().toLocaleString()]
+            ]);
+            // Style header cells slightly
+            ws_info['!cols'] = [{wch: 25}, {wch: 40}];
+            XLSX.utils.book_append_sheet(wb, ws_info, "Report Info");
+
             const ws_summary = XLSX.utils.json_to_sheet(summaryMatrix);
             XLSX.utils.book_append_sheet(wb, ws_summary, "Executive Summary");
 
@@ -696,26 +894,149 @@
                 Status: item.status,
                 AWB: item.awb,
                 Client: item.client,
+                Category: CATEGORIES.find(c => c.id === item.categoryMatched)?.label || 'Other',
+                Type: item.type,
+                ProductType: item.productType,
+                Boxes: item.boxes,
+                Issue_Raw: item.issueRaw,
                 Remark: item.remark,
-                Issue: item.issue,
                 Ageing: item.ageing,
                 SortCode: item.sortCode
             }));
 
-            const ws_all = XLSX.utils.json_to_sheet(formatForExcel(finalReport));
-            XLSX.utils.book_append_sheet(wb, ws_all, "Master Data");
-
-            const ws_resolved = XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'Resolved')));
-            XLSX.utils.book_append_sheet(wb, ws_resolved, "Resolved Cases");
-
-            const ws_new = XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'New Influx')));
-            XLSX.utils.book_append_sheet(wb, ws_new, "New Influx");
-
-            const ws_pending = XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'Pending')));
-            XLSX.utils.book_append_sheet(wb, ws_pending, "Pending (Action Req)");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(formatForExcel(finalReport)), "Master Data");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'Resolved'))), "Resolved Cases");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'New Influx'))), "New Influx");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(formatForExcel(finalReport.filter(r => r.status === 'Pending'))), "Pending (Action Req)");
 
             const date = new Date().toISOString().slice(0,10);
-            XLSX.writeFile(wb, `PST_Shift_Audit_Report_${date}.xlsx`);
+            XLSX.writeFile(wb, `PST_Accountability_Report_${date}.xlsx`);
+        }
+
+        window.downloadJPGReport = function() {
+            const btn = document.getElementById('jpg-btn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Snapping...';
+            
+            const element = document.getElementById('summary-export-area');
+            
+            // 1. Clone the Header dynamically to include in the snapshot
+            const headerClone = document.getElementById('main-header').cloneNode(true);
+            
+            // 2. Remove the action buttons from the clone so they aren't in the snapshot
+            const buttonsClone = headerClone.querySelector('#action-buttons');
+            if (buttonsClone) buttonsClone.remove();
+            
+            // 3. FIX for html2canvas: Remove text-gradients as they render as solid blocks in canvas
+            const gradientTexts = headerClone.querySelectorAll('.bg-clip-text');
+            gradientTexts.forEach(el => {
+                el.classList.remove('text-transparent', 'bg-clip-text', 'bg-gradient-to-r', 'from-indigo-600', 'to-violet-500');
+                el.classList.add('text-indigo-600'); // Fallback to solid color for crisp image
+            });
+
+            // 4. FIX for html2canvas: Remove animations to prevent missing frames in snapshot
+            const animatedElements = headerClone.querySelectorAll('.animate-pulse, .animate-float');
+            animatedElements.forEach(el => {
+                el.classList.remove('animate-pulse', 'animate-float');
+            });
+            
+            // 5. Tweak clone classes for a perfect snapshot fit
+            headerClone.classList.remove('mb-10', 'animate-fade-in');
+            headerClone.classList.add('mb-8', 'px-2'); 
+            
+            // 6. Temporarily attach the cloned header to the top of the summary area
+            element.insertBefore(headerClone, element.firstChild);
+            
+            // 7. Temporarily assign a solid background color to the capture element
+            const prevBg = element.style.backgroundColor;
+            const prevPadding = element.style.padding;
+            element.style.backgroundColor = '#f8fafc'; // Matches mesh background slate
+            element.style.padding = '2rem';
+            element.style.borderRadius = '24px';
+
+            // Temporarily pause ALL animations on the live page so floating icons don't blur during capture
+            const style = document.createElement('style');
+            style.innerHTML = `* { animation: none !important; }`;
+            document.head.appendChild(style);
+
+            html2canvas(element, {
+                scale: 2, // High resolution
+                useCORS: true,
+                backgroundColor: '#f8fafc'
+            }).then(canvas => {
+                // Revert DOM changes
+                headerClone.remove();
+                document.head.removeChild(style);
+                element.style.backgroundColor = prevBg;
+                element.style.padding = prevPadding;
+                element.style.borderRadius = '';
+
+                // Trigger Download
+                const link = document.createElement('a');
+                link.download = `PST_KPI_Snapshot_${new Date().toISOString().slice(0,10)}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+                
+                btn.innerHTML = originalHtml;
+            }).catch(err => {
+                console.error('Error capturing image:', err);
+                // Clean up on error
+                headerClone.remove();
+                if(document.head.contains(style)) document.head.removeChild(style);
+                element.style.backgroundColor = prevBg;
+                element.style.padding = prevPadding;
+                element.style.borderRadius = '';
+                btn.innerHTML = originalHtml;
+                alert('Failed to capture JPG snapshot.');
+            });
+        }
+
+        // --- VISUAL FX ---
+        function initTiltEffect() {
+            const cards = document.querySelectorAll('.interactive-card');
+            cards.forEach(card => {
+                const newCard = card.cloneNode(true);
+                card.parentNode.replaceChild(newCard, card);
+                
+                newCard.addEventListener('mousemove', (e) => {
+                    const rect = newCard.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    const rotateX = ((y - centerY) / centerY) * -3; 
+                    const rotateY = ((x - centerX) / centerX) * 3;
+
+                    newCard.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+                    
+                    const glare = newCard.querySelector('.card-glare');
+                    if (glare) {
+                        glare.style.opacity = '1';
+                        glare.style.background = `radial-gradient(circle at ${x}px ${y}px, rgba(255,255,255,0.4), transparent 60%)`;
+                    }
+                });
+
+                newCard.addEventListener('mouseleave', () => {
+                    newCard.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+                    const glare = newCard.querySelector('.card-glare');
+                    if (glare) glare.style.opacity = '0';
+                });
+            });
+        }
+
+        function initParallax() {
+            document.addEventListener('mousemove', (e) => {
+                const mouseX = e.clientX / window.innerWidth;
+                const mouseY = e.clientY / window.innerHeight;
+
+                const b1 = document.querySelector('.blob-1');
+                const b2 = document.querySelector('.blob-2');
+                const b3 = document.querySelector('.blob-3');
+
+                if(b1) b1.style.transform = `translate(${mouseX * 40}px, ${mouseY * 40}px)`;
+                if(b2) b2.style.transform = `translate(${mouseX * -40}px, ${mouseY * -40}px)`;
+                if(b3) b3.style.transform = `translate(${mouseX * 25}px, ${mouseY * -25}px)`;
+            });
         }
     </script>
 </body>
